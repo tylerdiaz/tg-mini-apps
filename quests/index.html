@@ -53,9 +53,7 @@
       background: var(--btn);
       color: var(--btn-text);
     }
-    .topic-group {
-      margin-bottom: 20px;
-    }
+    .topic-group { margin-bottom: 20px; }
     .topic-header {
       font-size: 12px;
       font-weight: 600;
@@ -86,6 +84,14 @@
       color: var(--hint);
     }
     .status { font-size: 12px; }
+    .asset-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 11px;
+      color: var(--hint);
+      margin-left: 4px;
+    }
     
     /* Detail View */
     .detail-view {
@@ -155,6 +161,88 @@
       color: var(--hint);
       padding: 40px 20px;
     }
+    
+    /* Assets */
+    .assets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .asset-item {
+      background: var(--secondary-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      aspect-ratio: 1;
+      position: relative;
+      cursor: pointer;
+    }
+    .asset-item:active { opacity: 0.8; }
+    .asset-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .asset-item .file-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 8px;
+      text-align: center;
+    }
+    .asset-item .file-icon .icon { font-size: 24px; margin-bottom: 4px; }
+    .asset-item .file-icon .name {
+      font-size: 9px;
+      color: var(--hint);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
+    }
+    
+    /* Image Lightbox */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 200;
+      padding: 40px 12px;
+      cursor: pointer;
+    }
+    .lightbox.open { display: flex; align-items: center; justify-content: center; }
+    .lightbox img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    
+    /* Action Buttons */
+    .action-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--secondary-bg);
+    }
+    .action-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .action-btn.primary {
+      background: var(--btn);
+      color: var(--btn-text);
+    }
+    .action-btn.secondary {
+      background: var(--secondary-bg);
+      color: var(--text);
+    }
   </style>
 </head>
 <body>
@@ -173,16 +261,16 @@
     <button class="back-btn" onclick="closeDetail()">← Back</button>
     <div id="detail-content"></div>
   </div>
+  
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="">
+  </div>
 
   <script>
-    // Initialize Telegram WebApp
     const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-    }
+    if (tg) { tg.ready(); tg.expand(); }
 
-    // Quest data - will be replaced by build script
+    // Quest data - synced by sync.js
     const QUESTS = [
         {
           "id": "conditional-form-fields",
@@ -199,7 +287,8 @@
                 "Created PR for implementation strategy around conditional form fields"
               ]
             }
-          ]
+          ],
+          "assets": []
         },
         {
           "id": "restricted-user-design",
@@ -216,7 +305,8 @@
                 "Worked with Ronish on restricted user design and expanding large content"
               ]
             }
-          ]
+          ],
+          "assets": []
         },
         {
           "id": "sage-logs-fix",
@@ -233,7 +323,8 @@
                 "Investigated PR issue with sage logs"
               ]
             }
-          ]
+          ],
+          "assets": []
         },
         {
           "id": "winback-campaign",
@@ -251,20 +342,25 @@
                 "Scaled it up to collect more data"
               ]
             }
-          ]
+          ],
+          "assets": []
         }
       ];
 
+    // Base URL for assets (adjust if hosted elsewhere)
+    const ASSETS_BASE = 'https://raw.githubusercontent.com/tylerdiaz/clawd-spectrum/main/quests/';
+    
     const topicEmoji = { dev: "💻", growth: "📈", ux: "🎨" };
     const statusEmoji = { active: "🟡", done: "🟢", blocked: "🔴", paused: "⚪" };
+    const fileIcons = { image: "🖼️", audio: "🎵", pdf: "📄", file: "📎" };
     
     let currentFilter = "all";
     let searchQuery = "";
+    let currentQuest = null;
 
     function renderQuests() {
       const container = document.getElementById("quests-container");
       
-      // Filter quests
       let filtered = QUESTS.filter(q => {
         if (currentFilter !== "all" && q.status !== currentFilter) return false;
         if (searchQuery && !q.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -276,7 +372,6 @@
         return;
       }
 
-      // Group by topic
       const grouped = {};
       filtered.forEach(q => {
         if (!grouped[q.topic]) grouped[q.topic] = [];
@@ -288,14 +383,16 @@
         html += `<div class="topic-group">
           <div class="topic-header">${topicEmoji[topic] || "📁"} ${topic.toUpperCase()}</div>`;
         grouped[topic].forEach(q => {
-          const lastLog = q.log[q.log.length - 1];
+          const assetCount = q.assets?.length || 0;
+          const logCount = q.log.reduce((sum, day) => sum + day.entries.length, 0);
           html += `<div class="quest-card" onclick="openQuest('${q.id}')">
             <div class="quest-title">
               <span class="status">${statusEmoji[q.status] || "⚪"}</span>
               ${q.title}
+              ${assetCount > 0 ? `<span class="asset-badge">📎${assetCount}</span>` : ''}
             </div>
             <div class="quest-meta">
-              ${q.created}${q.collaborator ? ` · w/ ${q.collaborator}` : ""}${lastLog ? ` · ${lastLog.entries.length} log entries` : ""}
+              ${q.created}${q.collaborator ? ` · w/ ${q.collaborator}` : ""} · ${logCount} logs
             </div>
           </div>`;
         });
@@ -308,8 +405,8 @@
     function openQuest(id) {
       const quest = QUESTS.find(q => q.id === id);
       if (!quest) return;
+      currentQuest = quest;
 
-      const statusClass = quest.status;
       let logHtml = "";
       quest.log.forEach(day => {
         logHtml += `<div class="log-entry">
@@ -318,14 +415,44 @@
         </div>`;
       });
 
+      let assetsHtml = "";
+      if (quest.assets && quest.assets.length > 0) {
+        assetsHtml = `<div class="section-header">Attachments</div><div class="assets-grid">`;
+        quest.assets.forEach(asset => {
+          if (asset.type === 'image') {
+            assetsHtml += `<div class="asset-item" onclick="openLightbox('${ASSETS_BASE}${asset.path}')">
+              <img src="${ASSETS_BASE}${asset.path}" alt="${asset.name}" loading="lazy">
+            </div>`;
+          } else {
+            assetsHtml += `<div class="asset-item">
+              <div class="file-icon">
+                <span class="icon">${fileIcons[asset.type]}</span>
+                <span class="name">${asset.name}</span>
+              </div>
+            </div>`;
+          }
+        });
+        assetsHtml += "</div>";
+      }
+
       document.getElementById("detail-content").innerHTML = `
         <div class="detail-title">${quest.title}</div>
-        <span class="detail-status ${statusClass}">${statusEmoji[quest.status]} ${quest.status}</span>
+        <span class="detail-status ${quest.status}">${statusEmoji[quest.status]} ${quest.status}</span>
+        
         <div class="section-header">Context</div>
         <p class="context-text">${quest.context}</p>
+        
         ${quest.collaborator ? `<div class="section-header">Collaborator</div><p class="context-text">${quest.collaborator}</p>` : ""}
+        
+        ${assetsHtml}
+        
         <div class="section-header">Log</div>
         ${logHtml || '<p class="context-text" style="opacity:0.5">No log entries yet</p>'}
+        
+        <div class="action-bar">
+          <button class="action-btn secondary" onclick="addLogEntry()">📝 Add Log</button>
+          <button class="action-btn primary" onclick="markDone()">✅ Mark Done</button>
+        </div>
       `;
       
       document.getElementById("detail-view").classList.add("open");
@@ -335,6 +462,36 @@
     function closeDetail() {
       document.getElementById("detail-view").classList.remove("open");
       if (tg) tg.BackButton.hide();
+      currentQuest = null;
+    }
+    
+    function openLightbox(src) {
+      event.stopPropagation();
+      document.getElementById("lightbox-img").src = src;
+      document.getElementById("lightbox").classList.add("open");
+    }
+    
+    function closeLightbox() {
+      document.getElementById("lightbox").classList.remove("open");
+    }
+    
+    function addLogEntry() {
+      if (!currentQuest || !tg) return;
+      // Send data back to bot
+      tg.sendData(JSON.stringify({
+        action: 'add_log',
+        quest_id: currentQuest.id,
+        topic: currentQuest.topic
+      }));
+    }
+    
+    function markDone() {
+      if (!currentQuest || !tg) return;
+      tg.sendData(JSON.stringify({
+        action: 'mark_done',
+        quest_id: currentQuest.id,
+        topic: currentQuest.topic
+      }));
     }
 
     // Event listeners
@@ -352,11 +509,8 @@
       });
     });
 
-    if (tg) {
-      tg.BackButton.onClick(closeDetail);
-    }
+    if (tg) tg.BackButton.onClick(closeDetail);
 
-    // Initial render
     renderQuests();
   </script>
 </body>
