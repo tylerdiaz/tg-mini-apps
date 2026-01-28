@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Wizard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-hint-color: #999999;
+            --tg-theme-link-color: #2678b6;
+            --tg-theme-button-color: #2678b6;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-secondary-bg-color: #f0f0f0;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 100px;
+        }
+        
+        .progress {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .progress-step {
+            flex: 1;
+            height: 4px;
+            background: var(--tg-theme-secondary-bg-color);
+            border-radius: 2px;
+            transition: background 0.3s;
+        }
+        
+        .progress-step.active {
+            background: var(--tg-theme-button-color);
+        }
+        
+        .progress-step.completed {
+            background: var(--tg-theme-button-color);
+        }
+        
+        .step {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .step.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .step-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .step-description {
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 24px;
+            line-height: 1.4;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--tg-theme-text-color);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 1px solid var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            background: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        .form-input:focus {
+            border-color: var(--tg-theme-button-color);
+            box-shadow: 0 0 0 3px rgba(38, 120, 182, 0.1);
+        }
+        
+        .form-input::placeholder {
+            color: var(--tg-theme-hint-color);
+        }
+        
+        textarea.form-input {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .option-card {
+            padding: 16px;
+            border: 2px solid var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--tg-theme-bg-color);
+        }
+        
+        .option-card:hover {
+            border-color: var(--tg-theme-button-color);
+        }
+        
+        .option-card.selected {
+            border-color: var(--tg-theme-button-color);
+            background: rgba(38, 120, 182, 0.1);
+        }
+        
+        .option-card .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .option-card .label {
+            font-weight: 500;
+        }
+        
+        .summary {
+            background: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+        
+        .summary-label {
+            color: var(--tg-theme-hint-color);
+        }
+        
+        .summary-value {
+            font-weight: 500;
+            text-align: right;
+        }
+        
+        .nav-buttons {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            background: var(--tg-theme-bg-color);
+            border-top: 1px solid var(--tg-theme-secondary-bg-color);
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary {
+            background: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        
+        .btn-primary {
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress" id="progress"></div>
+    
+    <div id="wizard"></div>
+    
+    <div class="nav-buttons">
+        <button class="btn btn-secondary" id="btnBack" onclick="prevStep()">Back</button>
+        <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Next</button>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        
+        // Apply Telegram theme
+        document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
+        document.body.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
+        document.body.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
+        document.body.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#2678b6');
+        document.body.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
+        document.body.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f0f0f0');
+        
+        // Wizard configuration - this would come from URL params or be injected
+        const config = {
+            title: "Quick Setup",
+            steps: [
+                {
+                    id: "basics",
+                    title: "Let's get started",
+                    description: "First, tell us a bit about yourself.",
+                    fields: [
+                        { id: "name", type: "text", label: "Your name", placeholder: "John Doe", required: true },
+                        { id: "email", type: "email", label: "Email address", placeholder: "john@example.com", required: true }
+                    ]
+                },
+                {
+                    id: "preferences",
+                    title: "Your preferences",
+                    description: "How would you like to use this?",
+                    fields: [
+                        { 
+                            id: "plan", 
+                            type: "options", 
+                            label: "Select a plan",
+                            options: [
+                                { value: "personal", label: "Personal", icon: "👤" },
+                                { value: "team", label: "Team", icon: "👥" },
+                                { value: "business", label: "Business", icon: "🏢" },
+                                { value: "enterprise", label: "Enterprise", icon: "🚀" }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: "details",
+                    title: "Almost there!",
+                    description: "Any additional details you'd like to share?",
+                    fields: [
+                        { id: "notes", type: "textarea", label: "Notes (optional)", placeholder: "Anything else we should know?" }
+                    ]
+                },
+                {
+                    id: "confirm",
+                    title: "Confirm your details",
+                    description: "Review and submit your information.",
+                    type: "summary"
+                }
+            ]
+        };
+        
+        let currentStep = 0;
+        let formData = {};
+        
+        function renderProgress() {
+            const progress = document.getElementById('progress');
+            progress.innerHTML = config.steps.map((step, i) => {
+                let cls = 'progress-step';
+                if (i < currentStep) cls += ' completed';
+                if (i === currentStep) cls += ' active';
+                return `<div class="${cls}"></div>`;
+            }).join('');
+        }
+        
+        function renderStep() {
+            const step = config.steps[currentStep];
+            const wizard = document.getElementById('wizard');
+            
+            let html = `
+                <div class="step active">
+                    <h1 class="step-title">${step.title}</h1>
+                    <p class="step-description">${step.description}</p>
+            `;
+            
+            if (step.type === 'summary') {
+                html += '<div class="summary">';
+                config.steps.forEach(s => {
+                    if (s.fields) {
+                        s.fields.forEach(f => {
+                            const value = formData[f.id];
+                            if (value) {
+                                let displayValue = value;
+                                if (f.type === 'options') {
+                                    const opt = f.options.find(o => o.value === value);
+                                    displayValue = opt ? `${opt.icon} ${opt.label}` : value;
+                                }
+                                html += `
+                                    <div class="summary-row">
+                                        <span class="summary-label">${f.label}</span>
+                                        <span class="summary-value">${displayValue}</span>
+                                    </div>
+                                `;
+                            }
+                        });
+                    }
+                });
+                html += '</div>';
+            } else if (step.fields) {
+                step.fields.forEach(field => {
+                    html += '<div class="form-group">';
+                    html += `<label class="form-label">${field.label}</label>`;
+                    
+                    if (field.type === 'options') {
+                        html += '<div class="options-grid">';
+                        field.options.forEach(opt => {
+                            const selected = formData[field.id] === opt.value ? 'selected' : '';
+                            html += `
+                                <div class="option-card ${selected}" onclick="selectOption('${field.id}', '${opt.value}', this)">
+                                    <div class="icon">${opt.icon}</div>
+                                    <div class="label">${opt.label}</div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    } else if (field.type === 'textarea') {
+                        html += `<textarea class="form-input" id="${field.id}" placeholder="${field.placeholder || ''}" oninput="updateField('${field.id}', this.value)">${formData[field.id] || ''}</textarea>`;
+                    } else {
+                        html += `<input type="${field.type}" class="form-input" id="${field.id}" placeholder="${field.placeholder || ''}" value="${formData[field.id] || ''}" oninput="updateField('${field.id}', this.value)">`;
+                    }
+                    
+                    html += '</div>';
+                });
+            }
+            
+            html += '</div>';
+            wizard.innerHTML = html;
+            
+            updateButtons();
+            renderProgress();
+        }
+        
+        function selectOption(fieldId, value, el) {
+            formData[fieldId] = value;
+            document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+            el.classList.add('selected');
+            tg.HapticFeedback.selectionChanged();
+        }
+        
+        function updateField(fieldId, value) {
+            formData[fieldId] = value;
+        }
+        
+        function updateButtons() {
+            const btnBack = document.getElementById('btnBack');
+            const btnNext = document.getElementById('btnNext');
+            
+            btnBack.style.display = currentStep === 0 ? 'none' : 'block';
+            
+            if (currentStep === config.steps.length - 1) {
+                btnNext.textContent = 'Submit';
+            } else {
+                btnNext.textContent = 'Next';
+            }
+        }
+        
+        function validateStep() {
+            const step = config.steps[currentStep];
+            if (!step.fields) return true;
+            
+            for (const field of step.fields) {
+                if (field.required && !formData[field.id]) {
+                    tg.HapticFeedback.notificationOccurred('error');
+                    const el = document.getElementById(field.id);
+                    if (el) {
+                        el.style.borderColor = '#ff3b30';
+                        el.focus();
+                    }
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        function nextStep() {
+            if (!validateStep()) return;
+            
+            tg.HapticFeedback.impactOccurred('light');
+            
+            if (currentStep === config.steps.length - 1) {
+                submit();
+            } else {
+                currentStep++;
+                renderStep();
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 0) {
+                tg.HapticFeedback.impactOccurred('light');
+                currentStep--;
+                renderStep();
+            }
+        }
+        
+        function submit() {
+            tg.HapticFeedback.notificationOccurred('success');
+            
+            // Send data back to the bot
+            tg.sendData(JSON.stringify({
+                action: 'wizard_complete',
+                data: formData
+            }));
+        }
+        
+        // Handle back button
+        tg.BackButton.onClick(() => {
+            if (currentStep > 0) {
+                prevStep();
+            } else {
+                tg.close();
+            }
+        });
+        
+        // Initialize
+        renderStep();
+        
+        // Show back button when not on first step
+        function updateTgBackButton() {
+            if (currentStep > 0) {
+                tg.BackButton.show();
+            } else {
+                tg.BackButton.hide();
+            }
+        }
+        
+        // Override renderStep to also update back button
+        const originalRenderStep = renderStep;
+        renderStep = function() {
+            originalRenderStep();
+            updateTgBackButton();
+        };
+        renderStep();
+    </script>
+</body>
+</html>
