@@ -218,12 +218,83 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        
+        .loading {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        
+        .loading.active {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--tg-theme-secondary-bg-color);
+            border-top-color: var(--tg-theme-button-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: var(--tg-theme-hint-color);
+            font-size: 16px;
+        }
+        
+        .success {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        
+        .success.active {
+            display: flex;
+        }
+        
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        
+        .success-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .success-text {
+            color: var(--tg-theme-hint-color);
+        }
     </style>
 </head>
 <body>
     <div class="progress" id="progress"></div>
     
     <div id="wizard"></div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Submitting...</div>
+    </div>
+    
+    <div class="success" id="success">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Submitted!</div>
+        <div class="success-text">Your response has been sent.</div>
+    </div>
     
     <div class="nav-buttons">
         <button class="btn btn-secondary" id="btnBack" onclick="prevStep()">Back</button>
@@ -436,13 +507,37 @@
         }
         
         function submit() {
-            tg.HapticFeedback.notificationOccurred('success');
+            // Disable buttons
+            document.getElementById('btnNext').disabled = true;
+            document.getElementById('btnBack').disabled = true;
             
-            // Send data back to the bot
-            tg.sendData(JSON.stringify({
-                action: 'wizard_complete',
-                data: formData
-            }));
+            // Show loading
+            document.getElementById('wizard').style.display = 'none';
+            document.getElementById('progress').style.display = 'none';
+            document.getElementById('loading').classList.add('active');
+            document.querySelector('.nav-buttons').style.display = 'none';
+            
+            tg.HapticFeedback.impactOccurred('medium');
+            
+            // Small delay for UX, then send data
+            setTimeout(() => {
+                // Send data back to the bot
+                tg.sendData(JSON.stringify({
+                    action: 'wizard_complete',
+                    data: formData,
+                    timestamp: new Date().toISOString()
+                }));
+                
+                // Show success (briefly before Telegram closes the app)
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('success').classList.add('active');
+                tg.HapticFeedback.notificationOccurred('success');
+                
+                // Close after a moment
+                setTimeout(() => {
+                    tg.close();
+                }, 1500);
+            }, 800);
         }
         
         // Handle back button
