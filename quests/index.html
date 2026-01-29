@@ -1168,18 +1168,18 @@
       const mergeable = pr.mergeable || pr.pr_mergeable;
       const hasConflict = mergeable === 'CONFLICTING';
       
-      // Format state label with timeline
+      // Format state label with compact timeline
       let stateLabel = cfg.label;
-      const openedAgo = pr.pr_created_at ? timeAgoFull(pr.pr_created_at) : null;
+      const openedAgo = pr.pr_created_at ? timeAgo(pr.pr_created_at) : null;
       
       if (pr.pr_state === 'MERGED' && pr.pr_merged_at) {
-        const mergedAgo = timeAgoFull(pr.pr_merged_at);
-        stateLabel = openedAgo ? `Opened ${openedAgo} → Merged ${mergedAgo}` : `Merged ${mergedAgo}`;
+        const mergedAgo = timeAgo(pr.pr_merged_at);
+        stateLabel = openedAgo ? `${openedAgo} → merged ${mergedAgo}` : `merged ${mergedAgo}`;
       } else if (pr.pr_state === 'CLOSED' && pr.pr_closed_at) {
-        const closedAgo = timeAgoFull(pr.pr_closed_at);
-        stateLabel = openedAgo ? `Opened ${openedAgo} → Closed ${closedAgo}` : `Closed ${closedAgo}`;
+        const closedAgo = timeAgo(pr.pr_closed_at);
+        stateLabel = openedAgo ? `${openedAgo} → closed ${closedAgo}` : `closed ${closedAgo}`;
       } else if (pr.pr_state === 'OPEN' && openedAgo) {
-        stateLabel = `Opened ${openedAgo}`;
+        stateLabel = `opened ${openedAgo}`;
       }
       
       const url = pr.pr_url || `https://github.com/${pr.pr_repo}/pull/${pr.pr_number}`;
