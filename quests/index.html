@@ -358,9 +358,16 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      margin-top: 24px;
     }
     .detail-sidebar .pr-card {
       margin: 0;
+    }
+    .detail-sidebar .sidebar-section {
+      margin-bottom: 24px;
+    }
+    .detail-sidebar .sidebar-section:last-child {
+      margin-bottom: 0;
     }
     
     @media (min-width: 768px) {
@@ -380,11 +387,12 @@
         position: sticky;
         top: 24px;
         align-self: flex-start;
+        margin-top: 0;
       }
-      .sidebar-section {
+      .detail-sidebar .sidebar-section {
         margin-bottom: 20px;
       }
-      .sidebar-section:last-child {
+      .detail-sidebar .sidebar-section:last-child {
         margin-bottom: 0;
       }
       .sidebar-section-title {
