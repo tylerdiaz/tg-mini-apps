@@ -545,6 +545,26 @@
     .detail-view.open {
       transform: translateX(0);
     }
+    /* Quest-to-quest navigation animation */
+    #detail-content {
+      transition: opacity 120ms ease-out, transform 120ms ease-out;
+    }
+    #detail-content.nav-out-left {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    #detail-content.nav-out-right {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    #detail-content.nav-in-left {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    #detail-content.nav-in-right {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
     /* Browser mode: instant show/hide, no slide */
     body:not(.tg-webapp) .detail-view {
       transform: none;
@@ -2924,6 +2944,8 @@
     let filteredQuestIds = [];
     
     // Keyboard navigation: left/right arrows to browse quests
+    let isNavigating = false;
+    
     document.addEventListener('keydown', (e) => {
       // Only handle arrow keys
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
@@ -2937,14 +2959,18 @@
       // Only navigate when detail view is open
       if (!currentQuest || !document.getElementById('detail-view').classList.contains('open')) return;
       
+      // Prevent rapid navigation
+      if (isNavigating) return;
+      
       e.preventDefault();
       
       // Find current position in filtered list
       const currentIdx = filteredQuestIds.indexOf(currentQuest.id);
       if (currentIdx === -1) return;
       
+      const goingLeft = e.key === 'ArrowLeft';
       let nextIdx;
-      if (e.key === 'ArrowLeft') {
+      if (goingLeft) {
         nextIdx = currentIdx > 0 ? currentIdx - 1 : filteredQuestIds.length - 1;
       } else {
         nextIdx = currentIdx < filteredQuestIds.length - 1 ? currentIdx + 1 : 0;
@@ -2952,9 +2978,43 @@
       
       const nextQuestId = filteredQuestIds[nextIdx];
       if (nextQuestId && nextQuestId !== currentQuest.id) {
-        openQuest(nextQuestId);
+        navigateToQuest(nextQuestId, goingLeft);
       }
     });
+    
+    // Animated quest-to-quest navigation
+    function navigateToQuest(questId, goingLeft) {
+      isNavigating = true;
+      const content = document.getElementById('detail-content');
+      
+      // Clean up editor before animating out
+      if (summaryEditor) {
+        summaryEditor.toTextArea();
+        summaryEditor = null;
+      }
+      
+      // Animate out
+      content.classList.add(goingLeft ? 'nav-out-right' : 'nav-out-left');
+      
+      setTimeout(() => {
+        // Load new quest (skip animation class temporarily)
+        content.style.transition = 'none';
+        content.classList.remove('nav-out-right', 'nav-out-left');
+        content.classList.add(goingLeft ? 'nav-in-right' : 'nav-in-left');
+        
+        // Actually load the quest
+        openQuest(questId);
+        
+        // Force reflow then animate in
+        content.offsetHeight;
+        content.style.transition = '';
+        content.classList.remove('nav-in-right', 'nav-in-left');
+        
+        setTimeout(() => {
+          isNavigating = false;
+        }, 120);
+      }, 120);
+    }
     
     // Restore quest or view from URL on load
     function restoreFromUrl() {
