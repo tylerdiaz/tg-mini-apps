@@ -221,6 +221,17 @@
     .detail-view.open {
       transform: translateX(0);
     }
+    /* Browser mode: instant show/hide, no slide */
+    body:not(.tg-webapp) .detail-view {
+      transform: none;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease-in-out;
+    }
+    body:not(.tg-webapp) .detail-view.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
     .back-btn {
       display: none; /* Hidden - Telegram handles back navigation */
     }
