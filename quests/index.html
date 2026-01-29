@@ -549,6 +549,12 @@
     #detail-content {
       transition: opacity 120ms ease-out, transform 120ms ease-out;
     }
+    #detail-content.nav-out-left,
+    #detail-content.nav-out-right,
+    #detail-content.nav-in-left,
+    #detail-content.nav-in-right {
+      pointer-events: none;
+    }
     #detail-content.nav-out-left {
       opacity: 0;
       transform: translateX(-30px);
@@ -564,6 +570,14 @@
     #detail-content.nav-in-right {
       opacity: 0;
       transform: translateX(-30px);
+    }
+    /* Hide action bar during nav to prevent flash */
+    #detail-content.nav-out-left .action-bar,
+    #detail-content.nav-out-right .action-bar,
+    #detail-content.nav-in-left .action-bar,
+    #detail-content.nav-in-right .action-bar {
+      opacity: 0 !important;
+      transition: none !important;
     }
     /* Browser mode: instant show/hide, no slide */
     body:not(.tg-webapp) .detail-view {
