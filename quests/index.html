@@ -332,15 +332,37 @@
     /* Inline code styling */
     .cm-s-hypermd-light .cm-inline-code,
     .cm-s-hypermd-light span.cm-inline-code {
-      background: rgba(255,255,255,0.1) !important;
-      padding: 1px 4px;
-      border-radius: 3px;
+      background: rgba(255,255,255,0.08) !important;
+      color: #a5d6ff !important; /* soft blue */
+      padding: 2px 6px;
+      border-radius: 4px;
       font-family: 'SF Mono', Monaco, monospace !important;
       font-size: 12px !important;
     }
     /* Code blocks */
     .cm-s-hypermd-light pre.HyperMD-codeblock {
       background: rgba(255,255,255,0.05) !important;
+      color: #e6edf3 !important; /* light gray for readability */
+    }
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-variable,
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-variable-2,
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-variable-3 {
+      color: #e6edf3 !important;
+    }
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-keyword {
+      color: #ff7b72 !important; /* soft red for keywords */
+    }
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-string {
+      color: #a5d6ff !important; /* soft blue for strings */
+    }
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-number {
+      color: #79c0ff !important;
+    }
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-comment {
+      color: #8b949e !important;
+    }
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-property {
+      color: #d2a8ff !important; /* soft purple */
     }
     /* Hide fold gutter for cleaner look */
     .CodeMirror-foldgutter {
