@@ -1199,6 +1199,11 @@
       
       renderFilterBar();
       renderQuests();
+      
+      // Restore quest from URL if present (browser mode only, first load)
+      if (!isTelegram && !currentQuest) {
+        restoreFromUrl();
+      }
     }
 
     function subscribeToChanges() {
@@ -2025,11 +2030,16 @@
       lucide.createIcons();
     }
 
-    function openQuest(id) {
+    function openQuest(id, pushState = true) {
       const quest = QUESTS.find(q => q.id === id);
       if (!quest) return;
       currentQuest = quest;
       lastSavedContext = quest.context || '';
+      
+      // Update URL for browser mode
+      if (!isTelegram && pushState) {
+        history.pushState({ questId: id }, '', `?q=${encodeURIComponent(id)}`);
+      }
       const cfg = statusConfig[quest.status] || statusConfig.active;
 
       // Render GitHub-style activity log (merged with PR activity)
@@ -2150,6 +2160,29 @@
       document.getElementById("detail-view").classList.remove("open");
       if (isTelegram) tg.BackButton.hide();
       currentQuest = null;
+      
+      // Clear URL param in browser mode
+      if (!isTelegram) {
+        history.pushState({}, '', window.location.pathname);
+      }
+    }
+    
+    // Handle browser back/forward
+    window.addEventListener('popstate', (e) => {
+      if (e.state?.questId) {
+        openQuest(e.state.questId, false);
+      } else {
+        closeDetail();
+      }
+    });
+    
+    // Restore quest from URL on load
+    function restoreFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const questId = params.get('q');
+      if (questId && QUESTS.length > 0) {
+        openQuest(questId, false);
+      }
     }
     
     function openLightbox(src) {
