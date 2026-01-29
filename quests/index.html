@@ -175,7 +175,6 @@
       background: var(--link);
       border-radius: 50%;
       flex-shrink: 0;
-      margin-left: auto;
     }
     .quest-status-icon {
       font-size: 14px;
@@ -2200,8 +2199,8 @@
           <span class="quest-status-icon">${icon(cfg.icon, 18, cfg.color)}</span>
           <div class="quest-content">
             <div class="quest-title">
-              <span class="quest-title-text">${q.title}</span>
               ${q.isUnread ? '<span class="unread-dot"></span>' : ''}
+              <span class="quest-title-text">${q.title}</span>
             </div>
             <div class="quest-meta">
               <span class="quest-topic">${icon(topicCfg.icon, 12)} ${topicCfg.label}</span>
