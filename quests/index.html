@@ -968,6 +968,11 @@
         .select('*')
         .order('created_at', { ascending: true });
       
+      const { data: prActivity } = await db
+        .from('quest_pr_activity')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
       questLogs = {};
       if (logs) {
         logs.forEach(log => {
@@ -1000,6 +1005,14 @@
         });
       }
       
+      const questPrActivity = {};
+      if (prActivity) {
+        prActivity.forEach(activity => {
+          if (!questPrActivity[activity.quest_id]) questPrActivity[activity.quest_id] = [];
+          questPrActivity[activity.quest_id].push(activity);
+        });
+      }
+      
       QUESTS = quests.map(q => ({
         id: q.id,
         topic: q.topic,
@@ -1024,7 +1037,8 @@
         pingcode_ticket: q.pingcode_ticket,
         obsidian_note: q.obsidian_note,
         prs: questPrs[q.id] || [],
-        notes: questNotes[q.id] || []
+        notes: questNotes[q.id] || [],
+        pr_activity: questPrActivity[q.id] || []
       }));
       
       renderFilterBar();
@@ -1039,6 +1053,7 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_assets' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_prs' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_notes' }, () => loadQuests())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_pr_activity' }, () => loadQuests())
         .subscribe();
     }
 
@@ -1416,54 +1431,118 @@
       return result;
     }
     
-    function renderActivityLog(logs) {
-      if (!logs || logs.length === 0) {
-        return '<p class="context-text" style="opacity:0.5">No activity yet</p>';
-      }
-      
+    function renderActivityLog(logs, prActivity = []) {
       // Dedupe and process logs
       const seenEntries = new Set();
       const activities = [];
       
-      logs.forEach(item => {
-        if (item.entries) {
-          // Old format
-          item.entries.forEach(e => {
-            const key = e.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+      // Add quest logs
+      if (logs) {
+        logs.forEach(item => {
+          if (item.entries) {
+            // Old format
+            item.entries.forEach(e => {
+              const key = e.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+              if (!seenEntries.has(key)) {
+                seenEntries.add(key);
+                activities.push({ entry: e, time: item.date, source: 'log' });
+              }
+            });
+          } else if (item.entry) {
+            // New Supabase format
+            const key = item.entry.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
             if (!seenEntries.has(key)) {
               seenEntries.add(key);
-              activities.push({ entry: e, time: item.date });
+              activities.push({ entry: item.entry, time: item.logged_at, source: 'log' });
             }
-          });
-        } else if (item.entry) {
-          // New Supabase format
-          const key = item.entry.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+          }
+        });
+      }
+      
+      // Add PR activity (comments, reviews)
+      if (prActivity && prActivity.length > 0) {
+        prActivity.forEach(item => {
+          const key = `pr-${item.github_id}`;
           if (!seenEntries.has(key)) {
             seenEntries.add(key);
-            activities.push({ entry: item.entry, time: item.logged_at });
+            activities.push({
+              entry: item.body,
+              time: item.created_at,
+              source: 'pr',
+              author: item.author,
+              activity_type: item.activity_type,
+              state: item.state,
+              pr_number: item.pr_number,
+              github_url: item.github_url
+            });
           }
-        }
-      });
+        });
+      }
       
       if (activities.length === 0) {
         return '<p class="context-text" style="opacity:0.5">No activity yet</p>';
       }
       
+      // Sort by time descending
+      activities.sort((a, b) => {
+        const timeA = a.time ? new Date(a.time).getTime() : 0;
+        const timeB = b.time ? new Date(b.time).getTime() : 0;
+        return timeB - timeA;
+      });
+      
       let html = '<div class="activity-timeline">';
       
-      activities.forEach(({ entry, time }) => {
-        const activity = parseActivity(entry, time);
-        html += `
-          <div class="activity-item">
-            <div class="activity-icon ${activity.type}">
-              ${icon(activity.icon, 16)}
+      activities.forEach((item) => {
+        if (item.source === 'pr') {
+          // PR comment/review
+          const isReview = item.activity_type === 'review';
+          const iconName = isReview ? 'message-square-text' : 'message-circle';
+          const iconColor = isReview ? '#8b5cf6' : '#fbbf24';
+          const typeClass = isReview ? 'review' : 'comment';
+          
+          // Truncate long comments
+          let body = item.entry || '';
+          if (body.length > 300) {
+            body = body.slice(0, 300) + '...';
+          }
+          body = body.replace(/\n/g, '<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&lt;br&gt;/g, '<br>');
+          
+          const prLink = item.github_url ? 
+            `<a href="${item.github_url}" target="_blank" style="color:var(--link);text-decoration:none;">#${item.pr_number}</a>` : 
+            `#${item.pr_number}`;
+          
+          html += `
+            <div class="activity-item">
+              <div class="activity-icon ${typeClass}">
+                ${icon(iconName, 16)}
+              </div>
+              <div class="activity-body">
+                <div class="activity-main">
+                  <strong style="color:var(--text);">@${item.author}</strong> 
+                  <span style="color:var(--hint);">commented on ${prLink}</span>
+                </div>
+                <div style="margin-top:6px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;font-size:12px;line-height:1.5;color:var(--text);opacity:0.85;">
+                  ${body}
+                </div>
+                <div class="activity-meta">${timeAgoFull(item.time)}</div>
+              </div>
             </div>
-            <div class="activity-body">
-              <div class="activity-main">${activity.html}</div>
-              ${activity.meta ? `<div class="activity-meta">${activity.meta}</div>` : ''}
+          `;
+        } else {
+          // Regular log entry
+          const activity = parseActivity(item.entry, item.time);
+          html += `
+            <div class="activity-item">
+              <div class="activity-icon ${activity.type}">
+                ${icon(activity.icon, 16)}
+              </div>
+              <div class="activity-body">
+                <div class="activity-main">${activity.html}</div>
+                ${activity.meta ? `<div class="activity-meta">${activity.meta}</div>` : ''}
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        }
       });
       
       html += '</div>';
@@ -1772,8 +1851,8 @@
       currentQuest = quest;
       const cfg = statusConfig[quest.status] || statusConfig.active;
 
-      // Render GitHub-style activity log
-      const logHtml = renderActivityLog(quest.log);
+      // Render GitHub-style activity log (merged with PR activity)
+      const logHtml = renderActivityLog(quest.log, quest.pr_activity);
 
       let assetsHtml = "";
       if (quest.assets && quest.assets.length > 0) {
