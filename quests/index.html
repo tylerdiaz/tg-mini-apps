@@ -262,6 +262,9 @@
       margin: 12px 0;
       border-left: 3px solid var(--link);
     }
+    .pr-card.pr-open { border-left-color: #22c55e; }
+    .pr-card.pr-merged { border-left-color: #8b5cf6; }
+    .pr-card.pr-closed { border-left-color: #ef4444; }
     .pr-card-header {
       display: flex;
       align-items: center;
@@ -1034,10 +1037,10 @@
       const repoShort = pr.pr_repo?.split('/')[1] || pr.pr_repo;
       
       return `
-        <a href="${url}" target="_blank" class="pr-card" style="text-decoration:none;color:inherit;display:block;">
+        <a href="${url}" target="_blank" class="pr-card pr-${stateClass}" style="text-decoration:none;color:inherit;display:block;">
           <div class="pr-card-header">
             ${icon(cfg.icon, 18, cfg.color)}
-            <span class="pr-card-number">#${pr.pr_number}</span>
+            <span class="pr-card-number" style="color:${cfg.color}">#${pr.pr_number}</span>
             <span class="pr-card-state ${stateClass}">${stateLabel}</span>
           </div>
           <div class="pr-card-title">${pr.pr_title || 'Untitled PR'}</div>
