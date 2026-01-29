@@ -2901,14 +2901,8 @@
           const fileType = getFileType(asset.mime_type, filename);
           
           if (isImage) {
-            assetsHtml += `<div class="asset-item">
-              <img src="${assetUrl}" alt="${filename}" loading="lazy" onclick="openLightbox('${assetUrl}', '${filename.replace(/'/g, "\\'")}')">
-              <div class="asset-actions">
-                <button class="asset-action-btn" onclick="event.stopPropagation(); downloadAsset('${assetUrl}', '${filename}')" title="Download">
-                  ${icon('download', 14)}
-                </button>
-              </div>
-              <span class="asset-filename">${filename}</span>
+            assetsHtml += `<div class="asset-item" onclick="openLightbox('${assetUrl}', '${filename.replace(/'/g, "\\'")}')">
+              <img src="${assetUrl}" alt="${filename}" loading="lazy">
             </div>`;
           } else {
             assetsHtml += `<div class="asset-item" onclick="window.open('${assetUrl}', '_blank')">
