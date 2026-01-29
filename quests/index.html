@@ -807,7 +807,8 @@
         pr_deletions: q.pr_deletions,
         pr_repo: q.pr_repo,
         pr_created_at: q.pr_created_at,
-        pr_merged_at: q.pr_merged_at
+        pr_merged_at: q.pr_merged_at,
+        pingcode_ticket: q.pingcode_ticket
       }));
       
       renderFilterBar();
@@ -847,7 +848,8 @@
     function getPrBadge(quest) {
       if (!quest.pr_number) return '';
       const cfg = prStateConfig[quest.pr_state] || prStateConfig.OPEN;
-      return `<span class="pr-badge pr-${quest.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${quest.pr_number}</span>`;
+      const repoShort = quest.pr_repo?.split('/')[1] || '';
+      return `<span class="pr-badge pr-${quest.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${quest.pr_number}${repoShort ? ` • ${repoShort}` : ''}</span>`;
     }
     
     function renderPrCard(quest) {
@@ -1234,6 +1236,7 @@
               <span class="quest-topic">${icon(topicCfg.icon, 12)} ${topicCfg.label}</span>
               ${q.collaborator ? `<span>${icon('users', 12)} ${q.collaborator}</span>` : ''}
               ${prBadge}
+              ${q.pingcode_ticket ? `<span class="quest-topic">${icon('ticket', 12)} ${q.pingcode_ticket}</span>` : ''}
               <span class="quest-time">${timeAgo(q.updated)}</span>
             </div>
           </div>
