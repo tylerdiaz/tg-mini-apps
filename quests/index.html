@@ -856,10 +856,10 @@
     }
     /* GitHub dark mode diff styling */
     .feed-item-diff {
-      margin-top: 8px;
+      margin-top: 6px;
       font-family: 'Inconsolata', 'SF Mono', Monaco, monospace;
       font-size: 12px;
-      line-height: 1.6;
+      line-height: 1.5;
       background: #0d1117;
       border: 1px solid #30363d;
       border-radius: 6px;
@@ -896,23 +896,23 @@
       border-bottom: 1px solid #30363d;
     }
     .feed-item-toggle {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--link);
       cursor: pointer;
-      margin-top: 6px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      display: inline;
+      margin-left: 6px;
+      opacity: 0.8;
     }
     .feed-item-toggle:hover {
+      opacity: 1;
       text-decoration: underline;
     }
-    .feed-item-toggle::before {
-      content: '▶';
-      font-size: 8px;
+    .feed-item-toggle svg {
+      display: inline;
+      vertical-align: middle;
       transition: transform 150ms ease;
     }
-    .feed-item-toggle.open::before {
+    .feed-item-toggle.open svg {
       transform: rotate(90deg);
     }
     
@@ -1821,16 +1821,8 @@
         }
         
         const diffId = 'diff-' + Math.random().toString(36).substr(2, 9);
-        const toggleId = 'toggle-' + diffId;
-        const diffHtml = diffContent ? `
-          <div class="feed-item-toggle" id="${toggleId}" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">
-            ${icon('chevron-right', 10)} Show changes
-          </div>
-          <div class="feed-item-diff" id="${diffId}">
-            <div class="diff-header">Changes</div>
-            ${diffContent}
-          </div>
-        ` : '';
+        const inlineToggle = diffContent ? `<span class="feed-item-toggle" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">${icon('chevron-right', 10)} diff</span>` : '';
+        const diffBlock = diffContent ? `<div class="feed-item-diff" id="${diffId}"><div class="diff-header">Changes</div>${diffContent}</div>` : '';
         
         html += `
           <div class="feed-item" onclick="openQuest('${a.quest.id}')">
@@ -1842,8 +1834,8 @@
                 <span class="feed-item-quest">${a.quest.title}</span>
                 <span class="feed-item-time">${timeAgoFull(a.timestamp)}</span>
               </div>
-              <div class="feed-item-content">${mainContent}</div>
-              ${diffHtml}
+              <div class="feed-item-content">${mainContent}${inlineToggle}</div>
+              ${diffBlock}
             </div>
           </div>
         `;
@@ -2363,7 +2355,8 @@
         } else {
           // Regular log entry - check for diffs
           let mainContent = item.entry || '';
-          let diffHtml = '';
+          let inlineToggle = '';
+          let diffBlock = '';
           
           if (mainContent.includes('\n+ ') || mainContent.includes('\n- ')) {
             const parts = mainContent.split('\n');
@@ -2378,15 +2371,8 @@
                 return `<span class="diff-line diff-context">${escaped}</span>`;
               }).join('');
               
-              diffHtml = `
-                <div class="feed-item-toggle" id="toggle-${diffId}" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">
-                  ${icon('chevron-right', 10)} Show changes
-                </div>
-                <div class="feed-item-diff" id="${diffId}">
-                  <div class="diff-header">Changes</div>
-                  ${diffContent}
-                </div>
-              `;
+              inlineToggle = `<span class="feed-item-toggle" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">${icon('chevron-right', 10)} diff</span>`;
+              diffBlock = `<div class="feed-item-diff" id="${diffId}"><div class="diff-header">Changes</div>${diffContent}</div>`;
             }
           }
           
@@ -2397,8 +2383,8 @@
                 ${icon(activity.icon, 16)}
               </div>
               <div class="activity-body">
-                <div class="activity-main">${activity.html}</div>
-                ${diffHtml}
+                <div class="activity-main">${activity.html}${inlineToggle}</div>
+                ${diffBlock}
                 ${activity.meta ? `<div class="activity-meta">${activity.meta}</div>` : ''}
               </div>
             </div>
