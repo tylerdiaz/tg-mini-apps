@@ -1666,7 +1666,7 @@
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         
-        if (diffHours < 1) return '1 hour ago';
+        if (diffHours < 2) return '2 hours ago';
         if (diffHours < 4) return '4 hours ago';
         if (diffDays === 0) return 'Today';
         if (diffDays === 1) return 'Yesterday';
