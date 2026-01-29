@@ -800,7 +800,7 @@
       </button>`;
 
       // Quick filters for status
-      const quickFilters = ['active', 'blocked', 'done'];
+      const quickFilters = ['active', 'blocked', 'done', 'archived'];
       quickFilters.forEach(status => {
         const cfg = statusConfig[status];
         const isActive = filters.statuses.includes(status);
@@ -983,6 +983,8 @@
       
       // Filter
       let filtered = QUESTS.filter(q => {
+        // Hide archived by default (unless explicitly filtering for it)
+        if (q.status === 'archived' && !filters.statuses.includes('archived')) return false;
         if (filters.topics.length > 0 && !filters.topics.includes(q.topic)) return false;
         if (filters.statuses.length > 0 && !filters.statuses.includes(q.status)) return false;
         if (!isWithinHours(q.updated, filters.timeHours)) return false;
