@@ -533,7 +533,7 @@
     const SUPABASE_URL = 'https://jhpoiyhxcfxoezcbxdss.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpocG9peWh4Y2Z4b2V6Y2J4ZHNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2NDc5NTUsImV4cCI6MjA4NTIyMzk1NX0.PElgaG4p1oN5XlZMQX4wEFscXfBFj0OTcx5z3Xmfn1I';
     
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     // Quest data - loaded from Supabase
     let QUESTS = [];
@@ -542,7 +542,7 @@
     async function loadQuests() {
       document.getElementById('results-count').textContent = 'Loading...';
       
-      const { data: quests, error: qErr } = await supabase
+      const { data: quests, error: qErr } = await db
         .from('quests')
         .select('*')
         .order('updated_at', { ascending: false });
@@ -553,7 +553,7 @@
         return;
       }
       
-      const { data: logs } = await supabase
+      const { data: logs } = await db
         .from('quest_logs')
         .select('*')
         .order('logged_at', { ascending: false });
@@ -585,7 +585,7 @@
     }
 
     function subscribeToChanges() {
-      supabase
+      db
         .channel('quests-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quests' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_logs' }, () => loadQuests())
