@@ -887,6 +887,11 @@
         .select('*')
         .order('uploaded_at', { ascending: false });
       
+      const { data: prs } = await db
+        .from('quest_prs')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
       questLogs = {};
       if (logs) {
         logs.forEach(log => {
@@ -900,6 +905,14 @@
         assets.forEach(asset => {
           if (!questAssets[asset.quest_id]) questAssets[asset.quest_id] = [];
           questAssets[asset.quest_id].push(asset);
+        });
+      }
+      
+      const questPrs = {};
+      if (prs) {
+        prs.forEach(pr => {
+          if (!questPrs[pr.quest_id]) questPrs[pr.quest_id] = [];
+          questPrs[pr.quest_id].push(pr);
         });
       }
       
@@ -925,7 +938,8 @@
         pr_created_at: q.pr_created_at,
         pr_merged_at: q.pr_merged_at,
         pingcode_ticket: q.pingcode_ticket,
-        obsidian_note: q.obsidian_note
+        obsidian_note: q.obsidian_note,
+        prs: questPrs[q.id] || []
       }));
       
       renderFilterBar();
@@ -938,6 +952,7 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quests' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_logs' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_assets' }, () => loadQuests())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_prs' }, () => loadQuests())
         .subscribe();
     }
 
@@ -964,44 +979,87 @@
     };
     
     function getPrBadge(quest) {
+      // Multiple PRs from new table
+      if (quest.prs && quest.prs.length > 0) {
+        if (quest.prs.length === 1) {
+          const pr = quest.prs[0];
+          const cfg = prStateConfig[pr.pr_state] || prStateConfig.OPEN;
+          return `<span class="pr-badge pr-${pr.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${pr.pr_number}</span>`;
+        }
+        // Multiple PRs - show count with mixed state indicator
+        const hasOpen = quest.prs.some(p => p.pr_state === 'OPEN');
+        const allMerged = quest.prs.every(p => p.pr_state === 'MERGED');
+        const stateClass = hasOpen ? 'open' : (allMerged ? 'merged' : 'closed');
+        const iconName = hasOpen ? 'git-pull-request' : (allMerged ? 'git-merge' : 'git-pull-request-closed');
+        const color = hasOpen ? '#22c55e' : (allMerged ? '#8b5cf6' : '#ef4444');
+        return `<span class="pr-badge pr-${stateClass}">${icon(iconName, 12, color)} ${quest.prs.length} PRs</span>`;
+      }
+      // Legacy single PR
       if (!quest.pr_number) return '';
       const cfg = prStateConfig[quest.pr_state] || prStateConfig.OPEN;
       const repoShort = quest.pr_repo?.split('/')[1] || '';
       return `<span class="pr-badge pr-${quest.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${quest.pr_number}${repoShort ? ` • ${repoShort}` : ''}</span>`;
     }
     
-    function renderPrCard(quest) {
-      if (!quest.pr_number) return '';
-      const cfg = prStateConfig[quest.pr_state] || prStateConfig.OPEN;
-      const stateClass = quest.pr_state?.toLowerCase() || 'open';
+    function renderSinglePrCard(pr) {
+      const cfg = prStateConfig[pr.pr_state] || prStateConfig.OPEN;
+      const stateClass = pr.pr_state?.toLowerCase() || 'open';
       
       // Format state label with timestamp
       let stateLabel = cfg.label;
-      if (quest.pr_state === 'MERGED' && quest.pr_merged_at) {
-        stateLabel = `Merged ${timeAgo(quest.pr_merged_at.split('T')[0])} ago`;
-      } else if (quest.pr_state === 'OPEN' && quest.pr_created_at) {
-        stateLabel = `Opened ${timeAgo(quest.pr_created_at.split('T')[0])} ago`;
-      } else if (quest.pr_state === 'CLOSED' && quest.pr_created_at) {
-        stateLabel = `Closed`;
+      if (pr.pr_state === 'MERGED' && pr.pr_merged_at) {
+        stateLabel = `Merged ${timeAgoFull(pr.pr_merged_at)}`;
+      } else if (pr.pr_state === 'OPEN' && pr.pr_created_at) {
+        stateLabel = `Opened ${timeAgoFull(pr.pr_created_at)}`;
+      } else if (pr.pr_state === 'CLOSED') {
+        stateLabel = pr.pr_closed_at ? `Closed ${timeAgoFull(pr.pr_closed_at)}` : 'Closed';
       }
       
-      const url = quest.pr_url || `https://github.com/${quest.pr_repo}/pull/${quest.pr_number}`;
+      const url = pr.pr_url || `https://github.com/${pr.pr_repo}/pull/${pr.pr_number}`;
+      const repoShort = pr.pr_repo?.split('/')[1] || pr.pr_repo;
       
       return `
         <a href="${url}" target="_blank" class="pr-card" style="text-decoration:none;color:inherit;display:block;">
           <div class="pr-card-header">
-            ${icon('git-pull-request', 18, cfg.color)}
-            <span class="pr-card-number">#${quest.pr_number}</span>
+            ${icon(cfg.icon, 18, cfg.color)}
+            <span class="pr-card-number">#${pr.pr_number}</span>
             <span class="pr-card-state ${stateClass}">${stateLabel}</span>
           </div>
-          <div class="pr-card-title">${quest.pr_title || 'Untitled PR'}</div>
+          <div class="pr-card-title">${pr.pr_title || 'Untitled PR'}</div>
           <div class="pr-card-stats">
-            <span class="pr-card-stat additions">${icon('plus', 12)} ${quest.pr_additions || 0}</span>
-            <span class="pr-card-stat deletions">${icon('minus', 12)} ${quest.pr_deletions || 0}</span>
-            ${quest.pr_repo ? `<span class="pr-card-stat">${icon('folder-git-2', 12)} ${quest.pr_repo}</span>` : ''}
+            <span class="pr-card-stat additions">${icon('plus', 12)} ${pr.pr_additions || 0}</span>
+            <span class="pr-card-stat deletions">${icon('minus', 12)} ${pr.pr_deletions || 0}</span>
+            ${pr.pr_repo ? `<span class="pr-card-stat">${icon('folder-git-2', 12)} ${repoShort}</span>` : ''}
           </div>
         </a>
       `;
+    }
+    
+    function renderPrCards(quest) {
+      // Use new prs array if available, fall back to legacy single PR
+      if (quest.prs && quest.prs.length > 0) {
+        return quest.prs.map(pr => renderSinglePrCard(pr)).join('');
+      }
+      // Legacy: single PR on quest object
+      if (quest.pr_number) {
+        return renderSinglePrCard({
+          pr_number: quest.pr_number,
+          pr_repo: quest.pr_repo,
+          pr_title: quest.pr_title,
+          pr_state: quest.pr_state,
+          pr_url: quest.pr_url,
+          pr_additions: quest.pr_additions,
+          pr_deletions: quest.pr_deletions,
+          pr_created_at: quest.pr_created_at,
+          pr_merged_at: quest.pr_merged_at
+        });
+      }
+      return '';
+    }
+    
+    // Legacy function for backwards compatibility
+    function renderPrCard(quest) {
+      return renderPrCards(quest);
     }
     
     // Render Obsidian link (format: "vault:path/to/note" or just "path/to/note" for default vault)
@@ -1659,7 +1717,7 @@
           ${summary}
         </div>
         
-        ${quest.pr_number ? renderPrCard(quest) : ''}
+        ${renderPrCards(quest)}
         ${quest.obsidian_note ? renderObsidianLink(quest) : ''}
         
         ${assetsHtml}
