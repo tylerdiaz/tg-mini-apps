@@ -918,6 +918,17 @@
       file: 'paperclip' 
     };
     
+    // Simple markdown renderer for summary/context
+    function renderMarkdown(text) {
+      if (!text) return '';
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')  // **bold**
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')              // *italic*
+        .replace(/`(.+?)`/g, '<code style="background:rgba(255,255,255,0.1);padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>')  // `code`
+        .replace(/^• /gm, '‣ ')                            // bullets
+        .replace(/\n/g, '<br>');                           // newlines
+    }
+    
     function generateSummary(quest) {
       const status = quest.status || 'active';
       const context = quest.context || '';
@@ -927,10 +938,14 @@
       let aboutText = context.length > 200 ? context.slice(0, 200) + '...' : context;
       if (!aboutText) aboutText = '<em>No context yet</em>';
       
+      // Render markdown
+      aboutText = renderMarkdown(aboutText);
+      
       // What's next from last log
       let nextText = '';
       if (lastLog && status !== 'done' && status !== 'archived') {
-        nextText = `<br><br><span style="opacity:0.7">${icon('pin', 12)} <strong>Latest:</strong> ${lastLog.slice(0, 100)}${lastLog.length > 100 ? '...' : ''}</span>`;
+        const renderedLog = renderMarkdown(lastLog.slice(0, 100) + (lastLog.length > 100 ? '...' : ''));
+        nextText = `<br><br><span style="opacity:0.7">${icon('pin', 12)} <strong>Latest:</strong> ${renderedLog}</span>`;
       }
       
       return aboutText + nextText;
