@@ -2494,6 +2494,16 @@
           }
         }, 10);
       });
+      
+      // Initialize cursor at end and blur to hide all decorators
+      setTimeout(() => {
+        if (summaryEditor) {
+          const lastLine = summaryEditor.lastLine();
+          const lastCh = summaryEditor.getLine(lastLine)?.length || 0;
+          summaryEditor.setCursor(lastLine, lastCh);
+          summaryEditor.getInputField().blur();
+        }
+      }, 50);
     }
     
     async function autoSaveSummary() {
