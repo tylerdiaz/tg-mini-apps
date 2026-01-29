@@ -7,6 +7,8 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
   <style>
     :root {
       --bg: var(--tg-theme-bg-color, #1a1a1a);
@@ -264,6 +266,69 @@
     .summary-textarea-inline::placeholder {
       color: var(--hint);
       opacity: 0.6;
+    }
+    /* EasyMDE dark theme overrides */
+    .EasyMDEContainer {
+      background: transparent !important;
+    }
+    .EasyMDEContainer .CodeMirror {
+      background: transparent !important;
+      color: var(--text) !important;
+      border: none !important;
+      font-size: 13px !important;
+      min-height: 200px !important;
+    }
+    .EasyMDEContainer .CodeMirror-cursor {
+      border-color: var(--text) !important;
+    }
+    .EasyMDEContainer .CodeMirror-selected {
+      background: rgba(51, 144, 236, 0.3) !important;
+    }
+    .EasyMDEContainer .cm-header {
+      color: var(--text) !important;
+    }
+    .EasyMDEContainer .cm-link, .EasyMDEContainer .cm-url {
+      color: var(--link) !important;
+    }
+    .EasyMDEContainer .cm-strong {
+      color: var(--text) !important;
+    }
+    .EasyMDEContainer .editor-toolbar {
+      background: var(--secondary-bg) !important;
+      border: none !important;
+      border-radius: 6px 6px 0 0 !important;
+      opacity: 1 !important;
+      padding: 4px !important;
+    }
+    .EasyMDEContainer .editor-toolbar button {
+      color: var(--hint) !important;
+      border: none !important;
+      background: transparent !important;
+    }
+    .EasyMDEContainer .editor-toolbar button:hover {
+      background: rgba(255,255,255,0.1) !important;
+      border-radius: 4px !important;
+    }
+    .EasyMDEContainer .editor-toolbar button.active {
+      background: rgba(51, 144, 236, 0.2) !important;
+      color: var(--link) !important;
+    }
+    .EasyMDEContainer .editor-toolbar i.separator {
+      border-color: var(--hint) !important;
+      opacity: 0.3 !important;
+    }
+    .EasyMDEContainer .editor-preview {
+      background: var(--bg) !important;
+      color: var(--text) !important;
+    }
+    .EasyMDEContainer .editor-preview pre {
+      background: rgba(255,255,255,0.05) !important;
+    }
+    .EasyMDEContainer .editor-statusbar {
+      display: none !important;
+    }
+    .EasyMDEContainer .CodeMirror-scroll {
+      min-height: 150px !important;
     }
     .quest-pr-link {
       display: inline-flex;
@@ -2117,12 +2182,7 @@
                 Summary
                 <span id="save-indicator" class="save-indicator"></span>
               </div>
-              <textarea 
-                id="summary-textarea" 
-                class="summary-textarea-inline" 
-                onblur="autoSaveSummary()"
-                placeholder="Add context, notes, links..."
-              >${quest.context || ''}</textarea>
+              <textarea id="summary-textarea">${quest.context || ''}</textarea>
             </div>
             
             ${assetsHtml}
@@ -2154,12 +2214,21 @@
       document.getElementById("detail-view").classList.add("open");
       if (isTelegram) tg.BackButton.show();
       lucide.createIcons();
+      
+      // Initialize WYSIWYG editor after DOM update
+      setTimeout(() => initSummaryEditor(), 50);
     }
 
     function closeDetail() {
       document.getElementById("detail-view").classList.remove("open");
       if (isTelegram) tg.BackButton.hide();
       currentQuest = null;
+      
+      // Clean up editor
+      if (summaryEditor) {
+        summaryEditor.toTextArea();
+        summaryEditor = null;
+      }
       
       // Clear URL param in browser mode
       if (!isTelegram) {
@@ -2309,13 +2378,45 @@
     });
     
     let lastSavedContext = '';
+    let summaryEditor = null;
+    let saveTimeout = null;
     
-    async function autoSaveSummary() {
-      if (!currentQuest) return;
+    function initSummaryEditor() {
+      // Destroy existing editor if any
+      if (summaryEditor) {
+        summaryEditor.toTextArea();
+        summaryEditor = null;
+      }
       
       const textarea = document.getElementById('summary-textarea');
+      if (!textarea) return;
+      
+      summaryEditor = new EasyMDE({
+        element: textarea,
+        spellChecker: false,
+        autofocus: false,
+        placeholder: 'Add context, notes, links...',
+        status: false,
+        toolbar: ['bold', 'italic', 'heading', '|', 'unordered-list', 'ordered-list', '|', 'link', 'code', '|', 'preview'],
+        previewClass: ['editor-preview', 'markdown-body'],
+        renderingConfig: {
+          singleLineBreaks: false,
+          codeSyntaxHighlighting: false
+        }
+      });
+      
+      // Auto-save on change with debounce
+      summaryEditor.codemirror.on('change', () => {
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(autoSaveSummary, 1000);
+      });
+    }
+    
+    async function autoSaveSummary() {
+      if (!currentQuest || !summaryEditor) return;
+      
       const indicator = document.getElementById('save-indicator');
-      const newContext = textarea.value;
+      const newContext = summaryEditor.value();
       
       // Don't save if nothing changed
       if (newContext === lastSavedContext) return;
