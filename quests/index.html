@@ -1073,57 +1073,38 @@
       flex: 1;
     }
     
-    /* Next Moves - concrete action items */
+    /* Suggested Next Steps - simple list */
     .next-moves-section {
-      background: rgba(59, 130, 246, 0.05);
-      border-radius: 8px;
-      padding: 12px;
       margin-top: 16px;
     }
     .next-moves-section .sidebar-section-title {
-      color: #3b82f6;
-      margin-bottom: 10px;
+      color: #22c55e;
+      margin-bottom: 8px;
+      font-size: 11px;
     }
     .next-moves-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 4px;
     }
     .next-move-item {
       display: flex;
       gap: 10px;
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.4;
-      padding: 10px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 6px;
-      border-left: 2px solid #3b82f6;
+      padding: 6px 0;
     }
-    .next-move-item.urgent {
-      border-left-color: #ef4444;
-      background: rgba(239, 68, 68, 0.08);
-    }
-    .next-move-item.pr_comment {
-      border-left-color: #8b5cf6;
-    }
-    .next-move-item.explicit {
-      border-left-color: #22c55e;
+    .next-move-item.urgent .next-move-text {
+      color: #ef4444;
     }
     .next-move-number {
       flex-shrink: 0;
-      width: 20px;
-      height: 20px;
-      background: rgba(59, 130, 246, 0.2);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 11px;
-      color: #3b82f6;
+      width: 18px;
+      color: #22c55e;
+      font-weight: 500;
+      font-size: 13px;
     }
     .next-move-item.urgent .next-move-number {
-      background: rgba(239, 68, 68, 0.2);
       color: #ef4444;
     }
     .next-move-content {
@@ -1150,14 +1131,7 @@
       margin: 3px 0;
       padding-left: 8px;
     }
-    .next-move-item.analyzed {
-      border-left-color: #22c55e;
-      background: rgba(34, 197, 94, 0.05);
-    }
-    .next-move-item.analyzed .next-move-number {
-      background: rgba(34, 197, 94, 0.2);
-      color: #22c55e;
-    }
+    /* analyzed items use default styling */
     
     @media (min-width: 768px) {
       .detail-view {
