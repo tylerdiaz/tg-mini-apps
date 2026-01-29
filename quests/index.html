@@ -2361,8 +2361,36 @@
             </div>
           `;
         } else {
-          // Regular log entry
-          const activity = parseActivity(item.entry, item.time);
+          // Regular log entry - check for diffs
+          let mainContent = item.entry || '';
+          let diffHtml = '';
+          
+          if (mainContent.includes('\n+ ') || mainContent.includes('\n- ')) {
+            const parts = mainContent.split('\n');
+            mainContent = parts[0];
+            const diffLines = parts.slice(1).filter(l => l.trim());
+            if (diffLines.length > 0) {
+              const diffId = 'detail-diff-' + Math.random().toString(36).substr(2, 9);
+              const diffContent = diffLines.map(l => {
+                const escaped = l.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                if (l.startsWith('+ ')) return `<span class="diff-line diff-add">${escaped}</span>`;
+                if (l.startsWith('- ')) return `<span class="diff-line diff-remove">${escaped}</span>`;
+                return `<span class="diff-line diff-context">${escaped}</span>`;
+              }).join('');
+              
+              diffHtml = `
+                <div class="feed-item-toggle" id="toggle-${diffId}" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">
+                  ${icon('chevron-right', 10)} Show changes
+                </div>
+                <div class="feed-item-diff" id="${diffId}">
+                  <div class="diff-header">Changes</div>
+                  ${diffContent}
+                </div>
+              `;
+            }
+          }
+          
+          const activity = parseActivity(mainContent, item.time);
           html += `
             <div class="activity-item">
               <div class="activity-icon ${activity.type}">
@@ -2370,6 +2398,7 @@
               </div>
               <div class="activity-body">
                 <div class="activity-main">${activity.html}</div>
+                ${diffHtml}
                 ${activity.meta ? `<div class="activity-meta">${activity.meta}</div>` : ''}
               </div>
             </div>
