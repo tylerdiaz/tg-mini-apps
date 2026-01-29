@@ -561,13 +561,14 @@
 
   <script>
     const tg = window.Telegram?.WebApp;
-    const isTelegram = tg && tg.initData;
+    // initData can be empty for some launch modes, check platform instead
+    const isTelegram = tg && (tg.initData || tg.platform !== 'unknown');
     
     if (isTelegram) {
       tg.ready();
       tg.expand();
       document.body.classList.add('tg-webapp');
-      document.getElementById('mode-badge').textContent = '📱 Telegram';
+      document.getElementById('mode-badge').textContent = '📱 ' + (tg.platform || 'Telegram');
     } else {
       document.getElementById('mode-badge').textContent = '🖥️ Browser';
     }
