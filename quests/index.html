@@ -854,35 +854,122 @@
     .feed-item-content a {
       color: var(--link);
     }
+    /* GitHub dark mode diff styling */
     .feed-item-diff {
-      margin-top: 6px;
+      margin-top: 8px;
       font-family: 'Inconsolata', 'SF Mono', Monaco, monospace;
-      font-size: 11px;
-      line-height: 1.5;
-      background: rgba(0,0,0,0.2);
-      border-radius: 4px;
-      padding: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      overflow: hidden;
       display: none;
-      white-space: pre-wrap;
-      word-break: break-word;
     }
     .feed-item-diff.open {
       display: block;
     }
+    .feed-item-diff .diff-line {
+      display: block;
+      padding: 2px 10px;
+      margin: 0;
+      border-left: 3px solid transparent;
+    }
     .feed-item-diff .diff-add {
-      color: #22c55e;
+      background: rgba(46, 160, 67, 0.15);
+      border-left-color: #3fb950;
+      color: #7ee787;
     }
     .feed-item-diff .diff-remove {
-      color: #ef4444;
+      background: rgba(248, 81, 73, 0.15);
+      border-left-color: #f85149;
+      color: #ffa198;
+    }
+    .feed-item-diff .diff-context {
+      color: #8b949e;
+    }
+    .feed-item-diff .diff-header {
+      background: #161b22;
+      color: #8b949e;
+      padding: 6px 10px;
+      font-size: 11px;
+      border-bottom: 1px solid #30363d;
     }
     .feed-item-toggle {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--link);
       cursor: pointer;
-      margin-top: 4px;
+      margin-top: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
     .feed-item-toggle:hover {
       text-decoration: underline;
+    }
+    .feed-item-toggle::before {
+      content: '▶';
+      font-size: 8px;
+      transition: transform 150ms ease;
+    }
+    .feed-item-toggle.open::before {
+      transform: rotate(90deg);
+    }
+    
+    /* Collapsible sections */
+    .collapsible-section {
+      margin: 12px 0;
+    }
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--secondary-bg);
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .collapsible-header:hover {
+      background: rgba(255,255,255,0.08);
+    }
+    .collapsible-section.collapsed .collapsible-header {
+      border-radius: 8px;
+    }
+    .collapsible-header .chevron {
+      transition: transform 150ms ease;
+    }
+    .collapsible-section.collapsed .collapsible-header .chevron {
+      transform: rotate(-90deg);
+    }
+    .collapsible-header .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .collapsible-header .section-count {
+      font-size: 10px;
+      color: var(--hint);
+      margin-left: auto;
+      opacity: 0.7;
+    }
+    .collapsible-body {
+      background: var(--secondary-bg);
+      border-radius: 0 0 8px 8px;
+      padding: 12px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .collapsible-section.collapsed .collapsible-body {
+      display: none;
+    }
+    /* Summary editor in collapsible */
+    .collapsible-body #summary-editor {
+      min-height: 150px;
+    }
+    .collapsible-body .CodeMirror {
+      min-height: 150px;
     }
     .feed-empty {
       text-align: center;
@@ -1716,27 +1803,33 @@
           html += `<div class="feed-time-divider">${group}</div>`;
           lastGroup = group;
         }
-        // Parse content for diffs
+        // Parse content for diffs (GitHub-style)
         let mainContent = a.content || '';
         let diffContent = '';
-        const diffIdx = mainContent.indexOf('\n+ ') !== -1 || mainContent.indexOf('\n- ') !== -1;
-        if (mainContent.includes('📝 Context updated\n')) {
+        if (mainContent.includes('📝 Context updated\n') || mainContent.includes('\n+ ') || mainContent.includes('\n- ')) {
           const parts = mainContent.split('\n');
           mainContent = parts[0];
           const diffLines = parts.slice(1).filter(l => l.trim());
           if (diffLines.length > 0) {
             diffContent = diffLines.map(l => {
-              if (l.startsWith('+ ')) return `<span class="diff-add">${l}</span>`;
-              if (l.startsWith('- ')) return `<span class="diff-remove">${l}</span>`;
-              return l;
-            }).join('\n');
+              const escaped = l.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              if (l.startsWith('+ ')) return `<span class="diff-line diff-add">${escaped}</span>`;
+              if (l.startsWith('- ')) return `<span class="diff-line diff-remove">${escaped}</span>`;
+              return `<span class="diff-line diff-context">${escaped}</span>`;
+            }).join('');
           }
         }
         
         const diffId = 'diff-' + Math.random().toString(36).substr(2, 9);
+        const toggleId = 'toggle-' + diffId;
         const diffHtml = diffContent ? `
-          <div class="feed-item-toggle" onclick="event.stopPropagation(); document.getElementById('${diffId}').classList.toggle('open'); this.textContent = this.textContent === 'Show changes' ? 'Hide changes' : 'Show changes';">Show changes</div>
-          <div class="feed-item-diff" id="${diffId}">${diffContent}</div>
+          <div class="feed-item-toggle" id="${toggleId}" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">
+            ${icon('chevron-right', 10)} Show changes
+          </div>
+          <div class="feed-item-diff" id="${diffId}">
+            <div class="diff-header">Changes</div>
+            ${diffContent}
+          </div>
         ` : '';
         
         html += `
@@ -2627,7 +2720,7 @@
 
       let assetsHtml = "";
       if (quest.assets && quest.assets.length > 0) {
-        assetsHtml = `<div class="section-header">Attachments (${quest.assets.length})</div><div class="assets-grid">`;
+        assetsHtml = `<div class="assets-grid">`;
         quest.assets.forEach(asset => {
           const assetUrl = `${SUPABASE_URL}/storage/v1/object/public/quest-assets/${asset.storage_path}`;
           const isImage = asset.mime_type?.startsWith('image/');
@@ -2682,6 +2775,10 @@
         sidebarHtml += '</div>';
       }
       
+      // Count activity items for badge
+      const activityCount = (quest.log?.length || 0) + (quest.pr_activity?.length || 0);
+      const assetsCount = quest.assets?.length || 0;
+      
       document.getElementById("detail-content").innerHTML = `
         <div class="detail-title">${quest.title}</div>
         <div class="detail-badges">
@@ -2692,18 +2789,43 @@
         
         <div class="detail-layout">
           <div class="detail-main">
-            <div class="quest-summary" id="summary-section">
-              <div class="quest-summary-label">
-                Summary
+            <!-- Summary Section (Collapsible) -->
+            <div class="collapsible-section" id="summary-section">
+              <div class="collapsible-header" onclick="toggleSection('summary-section')">
+                ${icon('chevron-down', 14, 'var(--hint)')}
+                <span class="section-title">Summary</span>
                 <span id="save-indicator" class="save-indicator"></span>
               </div>
-              <div id="summary-editor"></div>
+              <div class="collapsible-body">
+                <div id="summary-editor"></div>
+              </div>
             </div>
             
-            ${assetsHtml}
+            ${assetsCount > 0 ? `
+            <!-- Attachments Section (Collapsible) -->
+            <div class="collapsible-section" id="attachments-section">
+              <div class="collapsible-header" onclick="toggleSection('attachments-section')">
+                ${icon('chevron-down', 14, 'var(--hint)')}
+                <span class="section-title">Attachments</span>
+                <span class="section-count">${assetsCount}</span>
+              </div>
+              <div class="collapsible-body">
+                ${assetsHtml}
+              </div>
+            </div>
+            ` : ''}
             
-            <div class="section-header">Activity</div>
-            ${logHtml}
+            <!-- Activity Section (Collapsible) -->
+            <div class="collapsible-section" id="activity-section">
+              <div class="collapsible-header" onclick="toggleSection('activity-section')">
+                ${icon('chevron-down', 14, 'var(--hint)')}
+                <span class="section-title">Activity</span>
+                <span class="section-count">${activityCount}</span>
+              </div>
+              <div class="collapsible-body">
+                ${logHtml}
+              </div>
+            </div>
             
             <div class="action-bar">
               ${getSmartCTA(quest)}
@@ -2732,6 +2854,19 @@
       
       // Initialize WYSIWYG editor after DOM update
       setTimeout(() => initSummaryEditor(), 50);
+    }
+
+    // Toggle collapsible sections
+    function toggleSection(sectionId) {
+      const section = document.getElementById(sectionId);
+      if (!section) return;
+      section.classList.toggle('collapsed');
+      
+      // Animate chevron
+      const chevron = section.querySelector('.collapsible-header svg, .collapsible-header i');
+      if (chevron) {
+        chevron.classList.add('chevron');
+      }
     }
 
     function closeDetail() {
