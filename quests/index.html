@@ -1154,15 +1154,17 @@
     .drop-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(51, 144, 236, 0.15);
-      border: 4px dashed var(--btn);
-      z-index: 500;
+      background: rgba(51, 144, 236, 0.3);
+      border: 6px dashed var(--btn);
+      z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 150ms ease-in-out;
+      transition: opacity 100ms ease-in-out;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
     .drop-overlay.visible {
       opacity: 1;
@@ -1171,10 +1173,11 @@
     .drop-overlay-text {
       background: var(--bg);
       color: var(--btn);
-      padding: 20px 40px;
-      border-radius: 12px;
-      font-size: 18px;
-      font-weight: 500;
+      padding: 24px 48px;
+      border-radius: 16px;
+      font-size: 20px;
+      font-weight: 600;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
     .drop-overlay.uploading .drop-overlay-text {
       opacity: 0.6;
