@@ -623,7 +623,7 @@
       const { data: assets } = await db
         .from('quest_assets')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('uploaded_at', { ascending: false });
       
       questLogs = {};
       if (logs) {
