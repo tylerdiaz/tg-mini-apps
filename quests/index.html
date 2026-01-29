@@ -2785,7 +2785,9 @@
         </div>
       `;
       
-      document.getElementById('draft-detail-view').classList.add('open');
+      const detailView = document.getElementById('draft-detail-view');
+      detailView.classList.add('open');
+      detailView.scrollTop = 0;
       if (isTelegram) tg.BackButton.show();
       lucide.createIcons();
       
