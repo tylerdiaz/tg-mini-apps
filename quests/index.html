@@ -166,6 +166,17 @@
       gap: 10px;
     }
     .quest-card:active { opacity: 0.8; }
+    .quest-card.unread {
+      border-left: 3px solid var(--link);
+    }
+    .unread-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--link);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
     .quest-status-icon {
       font-size: 14px;
       flex-shrink: 0;
@@ -1249,9 +1260,25 @@
     
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
+    // Get user ID (Telegram user or browser fingerprint)
+    function getUserId() {
+      if (isTelegram && tg.initDataUnsafe?.user?.id) {
+        return 'tg_' + tg.initDataUnsafe.user.id;
+      }
+      // Fallback: persistent browser ID
+      let browserId = localStorage.getItem('quest_user_id');
+      if (!browserId) {
+        browserId = 'browser_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('quest_user_id', browserId);
+      }
+      return browserId;
+    }
+    const currentUserId = getUserId();
+    
     // Quest data - loaded from Supabase
     let QUESTS = [];
     let questLogs = {};
+    let questViews = {}; // { quest_id: viewed_at timestamp }
 
     async function loadQuests() {
       document.getElementById('results-count').textContent = 'Loading...';
@@ -1332,7 +1359,25 @@
         });
       }
       
-      QUESTS = quests.map(q => ({
+      // Load user's quest views for unread indicators
+      const { data: views } = await db
+        .from('quest_views')
+        .select('quest_id, viewed_at')
+        .eq('user_id', currentUserId);
+      
+      questViews = {};
+      if (views) {
+        views.forEach(v => {
+          questViews[v.quest_id] = new Date(v.viewed_at);
+        });
+      }
+      
+      QUESTS = quests.map(q => {
+        const updatedAt = q.updated_at ? new Date(q.updated_at) : null;
+        const viewedAt = questViews[q.id];
+        const isUnread = updatedAt && (!viewedAt || updatedAt > viewedAt);
+        
+        return {
         id: q.id,
         topic: q.topic,
         title: q.title,
@@ -1342,6 +1387,8 @@
         collaborator: q.collaborator,
         created: q.created_at?.split('T')[0],
         updated: q.updated_at?.split('T')[0],
+        updated_at: q.updated_at,
+        isUnread,
         log: questLogs[q.id] || [],
         assets: questAssets[q.id] || [],
         pr_url: q.pr_url,
@@ -1360,7 +1407,8 @@
         prs: questPrs[q.id] || [],
         notes: questNotes[q.id] || [],
         pr_activity: questPrActivity[q.id] || []
-      }));
+      };
+      });
       
       renderFilterBar();
       renderQuests();
@@ -2148,11 +2196,12 @@
         const cfg = statusConfig[q.status] || statusConfig.active;
         const topicCfg = topicConfig[q.topic] || { icon: 'folder', label: q.topic };
         const prBadge = q.pr_number ? getPrBadge(q) : '';
-        html += `<div class="quest-card" onclick="openQuest('${q.id}')">
+        html += `<div class="quest-card${q.isUnread ? ' unread' : ''}" onclick="openQuest('${q.id}')">
           <span class="quest-status-icon">${icon(cfg.icon, 18, cfg.color)}</span>
           <div class="quest-content">
             <div class="quest-title">
               <span class="quest-title-text">${q.title}</span>
+              ${q.isUnread ? '<span class="unread-dot"></span>' : ''}
             </div>
             <div class="quest-meta">
               <span class="quest-topic">${icon(topicCfg.icon, 12)} ${topicCfg.label}</span>
@@ -2194,12 +2243,37 @@
       container.innerHTML = html;
       lucide.createIcons();
     }
+    
+    // Mark quest as viewed for unread tracking
+    async function markQuestViewed(questId) {
+      const now = new Date().toISOString();
+      questViews[questId] = new Date(now);
+      
+      // Update in Supabase (upsert)
+      await db
+        .from('quest_views')
+        .upsert({
+          user_id: currentUserId,
+          quest_id: questId,
+          viewed_at: now
+        }, { onConflict: 'user_id,quest_id' });
+      
+      // Update local quest object
+      const quest = QUESTS.find(q => q.id === questId);
+      if (quest) quest.isUnread = false;
+      
+      // Re-render list to remove unread indicator
+      renderQuests();
+    }
 
     function openQuest(id, pushState = true) {
       const quest = QUESTS.find(q => q.id === id);
       if (!quest) return;
       currentQuest = quest;
       lastSavedContext = quest.context || '';
+      
+      // Mark as viewed (async, don't wait)
+      markQuestViewed(id);
       
       // Update URL for browser mode
       if (!isTelegram && pushState) {
