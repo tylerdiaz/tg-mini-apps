@@ -24,11 +24,12 @@
       min-height: 100vh;
     }
 
-    /* Header with search and sort */
+    /* Header */
     .header {
       display: flex;
       gap: 8px;
       margin-bottom: 10px;
+      align-items: center;
     }
     .search {
       flex: 1;
@@ -40,7 +41,7 @@
       font-size: 15px;
     }
     .search::placeholder { color: var(--hint); }
-    .sort-btn {
+    .header-btn {
       padding: 10px 12px;
       border: none;
       border-radius: 8px;
@@ -49,79 +50,60 @@
       font-size: 13px;
       cursor: pointer;
       white-space: nowrap;
-    }
-
-    /* Topic filters */
-    .topic-filters {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
-    .topic-chip {
-      padding: 5px 10px;
-      border: none;
-      border-radius: 14px;
-      background: var(--secondary-bg);
-      color: var(--hint);
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .topic-chip.active {
-      background: var(--btn);
-      color: var(--btn-text);
-    }
-
-    /* Time filters */
-    .time-filters {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 8px;
-    }
-    .time-chip {
-      padding: 4px 10px;
-      border: 1px solid var(--secondary-bg);
-      border-radius: 12px;
-      background: transparent;
-      color: var(--hint);
-      font-size: 11px;
-      cursor: pointer;
-    }
-    .time-chip.active {
-      border-color: var(--btn);
-      color: var(--btn);
-      background: rgba(51, 144, 236, 0.1);
-    }
-
-    /* Status tabs */
-    .status-tabs {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 12px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-    }
-    .status-tab {
-      padding: 6px 10px;
-      border: none;
-      border-radius: 6px;
-      background: var(--secondary-bg);
-      color: var(--hint);
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
       display: flex;
       align-items: center;
       gap: 4px;
     }
-    .status-tab.active {
-      background: var(--text);
-      color: var(--bg);
+    .header-btn:active { opacity: 0.8; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      align-items: center;
     }
-    .status-tab .count {
+    .add-filter-btn {
+      padding: 6px 10px;
+      border: 1px dashed var(--hint);
+      border-radius: 16px;
+      background: transparent;
+      color: var(--hint);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .add-filter-btn:active { opacity: 0.8; }
+    .filter-chip {
+      padding: 6px 10px;
+      border: 1px solid var(--btn);
+      border-radius: 16px;
+      background: rgba(51, 144, 236, 0.15);
+      color: var(--btn);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .filter-chip:active { opacity: 0.8; }
+    .filter-chip .remove {
+      font-size: 10px;
       opacity: 0.7;
-      font-size: 11px;
     }
+    .clear-btn {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 16px;
+      background: transparent;
+      color: var(--link);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .clear-btn:active { opacity: 0.8; }
 
     /* Quest cards */
     .quests-list { }
@@ -172,10 +154,6 @@
       margin-left: auto;
       flex-shrink: 0;
     }
-    .asset-badge {
-      font-size: 10px;
-      opacity: 0.7;
-    }
     .priority-badge {
       font-size: 10px;
       padding: 1px 4px;
@@ -189,6 +167,14 @@
       text-align: center;
       color: var(--hint);
       padding: 40px 20px;
+    }
+
+    /* Results count */
+    .results-count {
+      font-size: 11px;
+      color: var(--hint);
+      margin-bottom: 8px;
+      padding-left: 4px;
     }
 
     /* Detail View */
@@ -272,7 +258,6 @@
       position: relative;
       cursor: pointer;
     }
-    .asset-item:active { opacity: 0.8; }
     .asset-item img {
       width: 100%;
       height: 100%;
@@ -297,7 +282,7 @@
       width: 100%;
     }
     
-    /* Image Lightbox */
+    /* Lightbox */
     .lightbox {
       display: none;
       position: fixed;
@@ -339,8 +324,16 @@
       color: var(--text);
     }
 
-    /* Sort menu */
-    .sort-menu {
+    /* Bottom Sheet */
+    .sheet-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 140;
+    }
+    .sheet-backdrop.open { display: block; }
+    .bottom-sheet {
       display: none;
       position: fixed;
       bottom: 0;
@@ -348,71 +341,86 @@
       right: 0;
       background: var(--bg);
       border-top: 1px solid var(--secondary-bg);
+      border-radius: 16px 16px 0 0;
       padding: 16px;
       z-index: 150;
-      border-radius: 16px 16px 0 0;
+      max-height: 70vh;
+      overflow-y: auto;
     }
-    .sort-menu.open { display: block; }
-    .sort-menu-title {
-      font-size: 14px;
+    .bottom-sheet.open { display: block; }
+    .sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: var(--hint);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+      opacity: 0.5;
+    }
+    .sheet-title {
+      font-size: 16px;
       font-weight: 600;
-      margin-bottom: 12px;
-      color: var(--hint);
+      margin-bottom: 16px;
     }
-    .sort-option {
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      background: transparent;
-      color: var(--text);
-      font-size: 15px;
-      width: 100%;
-      text-align: left;
-      cursor: pointer;
+    .sheet-section {
+      margin-bottom: 20px;
+    }
+    .sheet-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    .sheet-options {
       display: flex;
-      align-items: center;
+      flex-wrap: wrap;
       gap: 8px;
     }
-    .sort-option:active { background: var(--secondary-bg); }
-    .sort-option.active { color: var(--btn); }
-    .sort-option .check { opacity: 0; }
-    .sort-option.active .check { opacity: 1; }
-    .sort-backdrop {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 140;
+    .sheet-option {
+      padding: 8px 14px;
+      border: 1px solid var(--secondary-bg);
+      border-radius: 20px;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
     }
-    .sort-backdrop.open { display: block; }
+    .sheet-option:active { opacity: 0.8; }
+    .sheet-option.selected {
+      border-color: var(--btn);
+      background: rgba(51, 144, 236, 0.15);
+      color: var(--btn);
+    }
+    .sheet-done-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: var(--btn);
+      color: var(--btn-text);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
   <div id="list-view">
     <div class="header">
       <input type="text" class="search" id="search" placeholder="Search quests...">
-      <button class="sort-btn" id="sort-btn">↕️ Updated</button>
+      <button class="header-btn" id="sort-btn">↕️ Updated</button>
     </div>
     
-    <div class="topic-filters" id="topic-filters">
-      <button class="topic-chip active" data-topic="all">All</button>
-      <button class="topic-chip" data-topic="dev">💻 dev</button>
-      <button class="topic-chip" data-topic="growth">📈 growth</button>
-      <button class="topic-chip" data-topic="ux">🎨 ux</button>
-      <button class="topic-chip" data-topic="ops">⚙️ ops</button>
+    <div class="filter-bar" id="filter-bar">
+      <button class="add-filter-btn" id="add-filter-btn">
+        <span>+</span> Filter
+      </button>
+      <!-- Active filters will be inserted here -->
     </div>
-    
-    <div class="time-filters" id="time-filters">
-      <button class="time-chip" data-hours="2">2h</button>
-      <button class="time-chip" data-hours="168">7d</button>
-      <button class="time-chip" data-hours="720">30d</button>
-      <button class="time-chip active" data-hours="0">All time</button>
-    </div>
-    
-    <div class="status-tabs" id="status-tabs">
-      <!-- Populated by JS -->
-    </div>
-    
+
+    <div class="results-count" id="results-count"></div>
     <div class="quests-list" id="quests-container"></div>
   </div>
   
@@ -425,21 +433,34 @@
     <img id="lightbox-img" src="" alt="">
   </div>
 
-  <div class="sort-backdrop" id="sort-backdrop" onclick="closeSortMenu()"></div>
-  <div class="sort-menu" id="sort-menu">
-    <div class="sort-menu-title">Sort by</div>
-    <button class="sort-option active" data-sort="updated">
-      <span class="check">✓</span> Recently updated
-    </button>
-    <button class="sort-option" data-sort="created">
-      <span class="check">✓</span> Recently created
-    </button>
-    <button class="sort-option" data-sort="stale">
-      <span class="check">✓</span> Stale (oldest first)
-    </button>
-    <button class="sort-option" data-sort="priority">
-      <span class="check">✓</span> Priority
-    </button>
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="filter-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Filters</div>
+    
+    <div class="sheet-section">
+      <div class="sheet-section-title">Topic</div>
+      <div class="sheet-options" id="topic-options"></div>
+    </div>
+    
+    <div class="sheet-section">
+      <div class="sheet-section-title">Status</div>
+      <div class="sheet-options" id="status-options"></div>
+    </div>
+    
+    <div class="sheet-section">
+      <div class="sheet-section-title">Time</div>
+      <div class="sheet-options" id="time-options"></div>
+    </div>
+    
+    <button class="sheet-done-btn" onclick="closeSheet()">Done</button>
+  </div>
+
+  <div class="sheet-backdrop" id="sort-backdrop" onclick="closeSortSheet()"></div>
+  <div class="bottom-sheet" id="sort-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Sort by</div>
+    <div class="sheet-options" id="sort-options"></div>
   </div>
 
   <script>
@@ -556,25 +577,45 @@
         }
       ];
 
-    // Base URL for assets
     const ASSETS_BASE = 'https://raw.githubusercontent.com/tylerdiaz/clawd-spectrum/main/quests/';
     
     const statusConfig = {
-      investigating: { emoji: '🔍', label: 'Investigating', order: 0 },
-      ready: { emoji: '🟢', label: 'Ready', order: 1 },
-      active: { emoji: '🔵', label: 'Active', order: 2 },
-      blocked: { emoji: '🟡', label: 'Blocked', order: 3 },
-      done: { emoji: '✅', label: 'Done', order: 4 },
-      paused: { emoji: '⏸️', label: 'Paused', order: 5 }
+      investigating: { emoji: '🔍', label: 'Investigating' },
+      ready: { emoji: '🟢', label: 'Ready' },
+      active: { emoji: '🔵', label: 'Active' },
+      blocked: { emoji: '🟡', label: 'Blocked' },
+      done: { emoji: '✅', label: 'Done' }
     };
     
-    const topicEmoji = { dev: "💻", growth: "📈", ux: "🎨", ops: "⚙️" };
+    const topicConfig = {
+      dev: { emoji: '💻', label: 'dev' },
+      growth: { emoji: '📈', label: 'growth' },
+      ux: { emoji: '🎨', label: 'ux' },
+      ops: { emoji: '⚙️', label: 'ops' }
+    };
+
+    const timeConfig = {
+      2: '2h',
+      168: '7d',
+      720: '30d',
+      0: 'All time'
+    };
+
+    const sortConfig = {
+      updated: 'Recently updated',
+      created: 'Recently created',
+      stale: 'Stale',
+      priority: 'Priority'
+    };
+    
     const fileIcons = { image: "🖼️", audio: "🎵", pdf: "📄", file: "📎" };
     
     // Filter state
-    let currentTopic = "all";
-    let currentStatus = "all";
-    let currentTimeHours = 0;  // 0 = all time
+    let filters = {
+      topics: [],      // empty = all
+      statuses: [],    // empty = all
+      timeHours: 0     // 0 = all time
+    };
     let currentSort = "updated";
     let searchQuery = "";
     let currentQuest = null;
@@ -595,7 +636,7 @@
     }
 
     function isWithinHours(dateStr, hours) {
-      if (!hours || hours === 0) return true;  // All time
+      if (!hours || hours === 0) return true;
       if (!dateStr) return false;
       const date = new Date(dateStr + 'T23:59:59');
       const now = new Date();
@@ -604,40 +645,167 @@
       return diffHours <= hours;
     }
 
-    function renderStatusTabs() {
-      const counts = { all: 0 };
-      QUESTS.forEach(q => {
-        counts.all++;
-        counts[q.status] = (counts[q.status] || 0) + 1;
+    function hasActiveFilters() {
+      return filters.topics.length > 0 || filters.statuses.length > 0 || filters.timeHours > 0;
+    }
+
+    function renderFilterBar() {
+      const bar = document.getElementById('filter-bar');
+      let html = `<button class="add-filter-btn" id="add-filter-btn" onclick="openFilterSheet()">
+        <span>+</span> Filter
+      </button>`;
+
+      // Topic chips
+      filters.topics.forEach(t => {
+        const cfg = topicConfig[t] || { emoji: '📁', label: t };
+        html += `<button class="filter-chip" onclick="removeFilter('topic', '${t}')">
+          ${cfg.emoji} ${cfg.label} <span class="remove">✕</span>
+        </button>`;
       });
 
-      const container = document.getElementById('status-tabs');
-      let html = `<button class="status-tab ${currentStatus === 'all' ? 'active' : ''}" data-status="all">
-        All <span class="count">${counts.all}</span>
-      </button>`;
-      
-      // Order: active, ready, investigating, blocked, done
-      const order = ['active', 'ready', 'investigating', 'blocked', 'done'];
-      order.forEach(status => {
-        if (counts[status]) {
-          const cfg = statusConfig[status];
-          html += `<button class="status-tab ${currentStatus === status ? 'active' : ''}" data-status="${status}">
-            ${cfg.emoji} ${cfg.label} <span class="count">${counts[status]}</span>
-          </button>`;
-        }
+      // Status chips
+      filters.statuses.forEach(s => {
+        const cfg = statusConfig[s] || { emoji: '⚪', label: s };
+        html += `<button class="filter-chip" onclick="removeFilter('status', '${s}')">
+          ${cfg.emoji} ${cfg.label} <span class="remove">✕</span>
+        </button>`;
       });
-      
-      container.innerHTML = html;
-      
-      // Rebind events
-      container.querySelectorAll('.status-tab').forEach(btn => {
+
+      // Time chip
+      if (filters.timeHours > 0) {
+        html += `<button class="filter-chip" onclick="removeFilter('time', ${filters.timeHours})">
+          🕐 ${timeConfig[filters.timeHours]} <span class="remove">✕</span>
+        </button>`;
+      }
+
+      // Clear button
+      if (hasActiveFilters()) {
+        html += `<button class="clear-btn" onclick="clearFilters()">clear</button>`;
+      }
+
+      bar.innerHTML = html;
+    }
+
+    function renderFilterSheet() {
+      // Topics
+      const topicContainer = document.getElementById('topic-options');
+      let topicHtml = '';
+      Object.entries(topicConfig).forEach(([key, cfg]) => {
+        const selected = filters.topics.includes(key) ? 'selected' : '';
+        topicHtml += `<button class="sheet-option ${selected}" data-type="topic" data-value="${key}">
+          ${cfg.emoji} ${cfg.label}
+        </button>`;
+      });
+      topicContainer.innerHTML = topicHtml;
+
+      // Statuses
+      const statusContainer = document.getElementById('status-options');
+      let statusHtml = '';
+      Object.entries(statusConfig).forEach(([key, cfg]) => {
+        const selected = filters.statuses.includes(key) ? 'selected' : '';
+        statusHtml += `<button class="sheet-option ${selected}" data-type="status" data-value="${key}">
+          ${cfg.emoji} ${cfg.label}
+        </button>`;
+      });
+      statusContainer.innerHTML = statusHtml;
+
+      // Time
+      const timeContainer = document.getElementById('time-options');
+      let timeHtml = '';
+      Object.entries(timeConfig).forEach(([hours, label]) => {
+        const selected = filters.timeHours === parseInt(hours) ? 'selected' : '';
+        timeHtml += `<button class="sheet-option ${selected}" data-type="time" data-value="${hours}">
+          ${label}
+        </button>`;
+      });
+      timeContainer.innerHTML = timeHtml;
+
+      // Bind events
+      document.querySelectorAll('#filter-sheet .sheet-option').forEach(btn => {
         btn.addEventListener('click', () => {
-          currentStatus = btn.dataset.status;
-          container.querySelectorAll('.status-tab').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
+          const type = btn.dataset.type;
+          const value = btn.dataset.value;
+          toggleFilterOption(type, value);
+          btn.classList.toggle('selected');
+        });
+      });
+    }
+
+    function renderSortSheet() {
+      const container = document.getElementById('sort-options');
+      let html = '';
+      Object.entries(sortConfig).forEach(([key, label]) => {
+        const selected = currentSort === key ? 'selected' : '';
+        html += `<button class="sheet-option ${selected}" data-sort="${key}">${label}</button>`;
+      });
+      container.innerHTML = html;
+
+      container.querySelectorAll('.sheet-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentSort = btn.dataset.sort;
+          document.getElementById('sort-btn').textContent = '↕️ ' + sortConfig[currentSort].split(' ').pop();
+          closeSortSheet();
           renderQuests();
         });
       });
+    }
+
+    function toggleFilterOption(type, value) {
+      if (type === 'topic') {
+        const idx = filters.topics.indexOf(value);
+        if (idx >= 0) filters.topics.splice(idx, 1);
+        else filters.topics.push(value);
+      } else if (type === 'status') {
+        const idx = filters.statuses.indexOf(value);
+        if (idx >= 0) filters.statuses.splice(idx, 1);
+        else filters.statuses.push(value);
+      } else if (type === 'time') {
+        filters.timeHours = parseInt(value);
+      }
+      renderFilterBar();
+      renderQuests();
+    }
+
+    function removeFilter(type, value) {
+      if (type === 'topic') {
+        filters.topics = filters.topics.filter(t => t !== value);
+      } else if (type === 'status') {
+        filters.statuses = filters.statuses.filter(s => s !== value);
+      } else if (type === 'time') {
+        filters.timeHours = 0;
+      }
+      renderFilterBar();
+      renderFilterSheet();
+      renderQuests();
+    }
+
+    function clearFilters() {
+      filters = { topics: [], statuses: [], timeHours: 0 };
+      renderFilterBar();
+      renderFilterSheet();
+      renderQuests();
+    }
+
+    function openFilterSheet() {
+      renderFilterSheet();
+      document.getElementById('filter-sheet').classList.add('open');
+      document.getElementById('sheet-backdrop').classList.add('open');
+    }
+
+    function closeSheet() {
+      document.getElementById('filter-sheet').classList.remove('open');
+      document.getElementById('sheet-backdrop').classList.remove('open');
+    }
+
+    function openSortSheet() {
+      renderSortSheet();
+      document.getElementById('sort-sheet').classList.add('open');
+      document.getElementById('sort-backdrop').classList.add('open');
+    }
+
+    function closeSortSheet() {
+      document.getElementById('sort-sheet').classList.remove('open');
+      document.getElementById('sort-backdrop').classList.remove('open');
     }
 
     function renderQuests() {
@@ -645,9 +813,9 @@
       
       // Filter
       let filtered = QUESTS.filter(q => {
-        if (currentTopic !== "all" && q.topic !== currentTopic) return false;
-        if (currentStatus !== "all" && q.status !== currentStatus) return false;
-        if (!isWithinHours(q.updated, currentTimeHours)) return false;
+        if (filters.topics.length > 0 && !filters.topics.includes(q.topic)) return false;
+        if (filters.statuses.length > 0 && !filters.statuses.includes(q.status)) return false;
+        if (!isWithinHours(q.updated, filters.timeHours)) return false;
         if (searchQuery && !q.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
         return true;
       });
@@ -669,6 +837,10 @@
         }
       });
 
+      // Results count
+      document.getElementById('results-count').textContent = 
+        `${filtered.length} quest${filtered.length !== 1 ? 's' : ''}`;
+
       if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state">No quests found</div>';
         return;
@@ -677,7 +849,7 @@
       let html = "";
       filtered.forEach(q => {
         const cfg = statusConfig[q.status] || statusConfig.active;
-        const assetCount = q.assets?.length || 0;
+        const topicCfg = topicConfig[q.topic] || { emoji: '📁', label: q.topic };
         const showPriority = q.priority === 'P0' || q.priority === 'P1';
         
         html += `<div class="quest-card" onclick="openQuest('${q.id}')">
@@ -688,8 +860,7 @@
               ${showPriority ? `<span class="priority-badge ${q.priority}">${q.priority}</span>` : ''}
             </div>
             <div class="quest-meta">
-              <span class="quest-topic">${topicEmoji[q.topic] || '📁'} ${q.topic}</span>
-              ${assetCount > 0 ? `<span class="asset-badge">📎${assetCount}</span>` : ''}
+              <span class="quest-topic">${topicCfg.emoji} ${q.topic}</span>
               ${q.collaborator ? `<span>w/ ${q.collaborator}</span>` : ''}
               <span class="quest-time">${timeAgo(q.updated)}</span>
             </div>
@@ -773,16 +944,6 @@
     function closeLightbox() {
       document.getElementById("lightbox").classList.remove("open");
     }
-
-    function openSortMenu() {
-      document.getElementById('sort-menu').classList.add('open');
-      document.getElementById('sort-backdrop').classList.add('open');
-    }
-
-    function closeSortMenu() {
-      document.getElementById('sort-menu').classList.remove('open');
-      document.getElementById('sort-backdrop').classList.remove('open');
-    }
     
     function addLogEntry() {
       if (!currentQuest || !tg) return;
@@ -808,45 +969,12 @@
       renderQuests();
     });
 
-    document.getElementById("sort-btn").addEventListener("click", openSortMenu);
-
-    document.querySelectorAll(".topic-chip").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".topic-chip").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        currentTopic = btn.dataset.topic;
-        renderQuests();
-      });
-    });
-
-    document.querySelectorAll(".time-chip").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".time-chip").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        currentTimeHours = parseInt(btn.dataset.hours) || 0;
-        renderQuests();
-      });
-    });
-
-    document.querySelectorAll(".sort-option").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".sort-option").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        currentSort = btn.dataset.sort;
-        
-        // Update button label
-        const labels = { updated: 'Updated', created: 'Created', stale: 'Stale', priority: 'Priority' };
-        document.getElementById('sort-btn').textContent = '↕️ ' + labels[currentSort];
-        
-        closeSortMenu();
-        renderQuests();
-      });
-    });
+    document.getElementById("sort-btn").addEventListener("click", openSortSheet);
 
     if (tg) tg.BackButton.onClick(closeDetail);
 
     // Initial render
-    renderStatusTabs();
+    renderFilterBar();
     renderQuests();
   </script>
 </body>
