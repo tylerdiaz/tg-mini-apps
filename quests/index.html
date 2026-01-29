@@ -302,6 +302,17 @@
     .cm-s-hypermd-light .cm-formatting {
       color: var(--hint) !important;
     }
+    /* Hide formatting characters completely when not editing */
+    .cm-s-hypermd-light .cm-formatting-code {
+      font-size: 0 !important;
+      width: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .cm-s-hypermd-light .cm-formatting-code.cm-formatting-code-block {
+      font-size: inherit !important;
+      width: auto !important;
+    }
     .cm-s-hypermd-light .cm-link {
       color: var(--link) !important;
     }
