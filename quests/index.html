@@ -229,47 +229,41 @@
       justify-content: space-between;
       align-items: center;
     }
-    .edit-summary-btn {
-      background: none;
-      border: none;
-      color: var(--link);
+    .save-indicator {
       font-size: 11px;
-      cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      opacity: 0;
+      transition: opacity 200ms ease;
     }
-    .edit-summary-btn:hover {
-      background: rgba(51, 144, 236, 0.1);
+    .save-indicator.saving {
+      opacity: 1;
+      color: var(--hint);
     }
-    .summary-textarea {
+    .save-indicator.saved {
+      opacity: 1;
+      color: #22c55e;
+    }
+    .save-indicator.error {
+      opacity: 1;
+      color: #ef4444;
+    }
+    .summary-textarea-inline {
       width: 100%;
-      min-height: 150px;
-      padding: 10px;
-      border: 1px solid var(--hint);
-      border-radius: 6px;
-      background: var(--bg);
+      min-height: 120px;
+      padding: 0;
+      border: none;
+      background: transparent;
       color: var(--text);
       font-size: 13px;
       font-family: inherit;
       line-height: 1.5;
       resize: vertical;
     }
-    .summary-textarea:focus {
+    .summary-textarea-inline:focus {
       outline: none;
-      border-color: var(--link);
     }
-    .summary-edit-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-      justify-content: flex-end;
-    }
-    .summary-edit-actions .action-btn {
-      padding: 8px 16px;
-      font-size: 13px;
+    .summary-textarea-inline::placeholder {
+      color: var(--hint);
+      opacity: 0.6;
     }
     .quest-pr-link {
       display: inline-flex;
@@ -1990,6 +1984,7 @@
       const quest = QUESTS.find(q => q.id === id);
       if (!quest) return;
       currentQuest = quest;
+      lastSavedContext = quest.context || '';
       const cfg = statusConfig[quest.status] || statusConfig.active;
 
       // Render GitHub-style activity log (merged with PR activity)
@@ -2065,18 +2060,14 @@
             <div class="quest-summary" id="summary-section">
               <div class="quest-summary-label">
                 Summary
-                <button class="edit-summary-btn" onclick="toggleSummaryEdit()" id="edit-summary-btn">
-                  ${icon('pencil', 12)} Edit
-                </button>
+                <span id="save-indicator" class="save-indicator"></span>
               </div>
-              <div id="summary-display">${summary}</div>
-              <div id="summary-edit" style="display:none;">
-                <textarea id="summary-textarea" class="summary-textarea">${quest.context || ''}</textarea>
-                <div class="summary-edit-actions">
-                  <button class="action-btn secondary" onclick="cancelSummaryEdit()">Cancel</button>
-                  <button class="action-btn primary" onclick="saveSummary()">Save</button>
-                </div>
-              </div>
+              <textarea 
+                id="summary-textarea" 
+                class="summary-textarea-inline" 
+                onblur="autoSaveSummary()"
+                placeholder="Add context, notes, links..."
+              >${quest.context || ''}</textarea>
             </div>
             
             ${assetsHtml}
@@ -2239,39 +2230,20 @@
       }
     });
     
-    function toggleSummaryEdit() {
-      const display = document.getElementById('summary-display');
-      const edit = document.getElementById('summary-edit');
-      const btn = document.getElementById('edit-summary-btn');
-      
-      if (edit.style.display === 'none') {
-        display.style.display = 'none';
-        edit.style.display = 'block';
-        btn.innerHTML = `${icon('x', 12)} Cancel`;
-        document.getElementById('summary-textarea').focus();
-      } else {
-        cancelSummaryEdit();
-      }
-      lucide.createIcons();
-    }
+    let lastSavedContext = '';
     
-    function cancelSummaryEdit() {
-      const display = document.getElementById('summary-display');
-      const edit = document.getElementById('summary-edit');
-      const btn = document.getElementById('edit-summary-btn');
-      
-      display.style.display = 'block';
-      edit.style.display = 'none';
-      btn.innerHTML = `${icon('pencil', 12)} Edit`;
-      // Reset textarea to original
-      document.getElementById('summary-textarea').value = currentQuest?.context || '';
-      lucide.createIcons();
-    }
-    
-    async function saveSummary() {
+    async function autoSaveSummary() {
       if (!currentQuest) return;
       
-      const newContext = document.getElementById('summary-textarea').value;
+      const textarea = document.getElementById('summary-textarea');
+      const indicator = document.getElementById('save-indicator');
+      const newContext = textarea.value;
+      
+      // Don't save if nothing changed
+      if (newContext === lastSavedContext) return;
+      
+      indicator.className = 'save-indicator saving';
+      indicator.textContent = 'Saving...';
       
       const { error } = await db
         .from('quests')
@@ -2279,20 +2251,25 @@
         .eq('id', currentQuest.id);
       
       if (error) {
-        showToast(`❌ Failed to save: ${error.message}`);
+        indicator.className = 'save-indicator error';
+        indicator.textContent = '✗ Failed';
+        setTimeout(() => { indicator.className = 'save-indicator'; }, 2000);
         return;
       }
       
-      // Log the edit
-      await db.from('quest_logs').insert({
-        quest_id: currentQuest.id,
-        entry: '📝 Context updated',
-        logged_at: new Date().toISOString()
-      });
+      // Only log if content actually changed meaningfully (more than whitespace)
+      if (newContext.trim() !== lastSavedContext.trim()) {
+        await db.from('quest_logs').insert({
+          quest_id: currentQuest.id,
+          entry: '📝 Context updated',
+          logged_at: new Date().toISOString()
+        });
+      }
       
-      showToast('✓ Summary saved');
-      cancelSummaryEdit();
-      // Realtime will refresh the data
+      lastSavedContext = newContext;
+      indicator.className = 'save-indicator saved';
+      indicator.textContent = '✓ Saved';
+      setTimeout(() => { indicator.className = 'save-indicator'; }, 1500);
     }
     
     function abandonQuest() {
