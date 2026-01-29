@@ -52,9 +52,14 @@
       white-space: nowrap;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
     }
     .header-btn:active { opacity: 0.8; }
+    .header-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
 
     /* Filter bar */
     .filter-bar {
@@ -74,9 +79,14 @@
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
     }
     .add-filter-btn:active { opacity: 0.8; }
+    .add-filter-btn svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
     .filter-chip {
       padding: 6px 10px;
       border: 1px solid var(--btn);
@@ -91,8 +101,10 @@
     }
     .filter-chip:active { opacity: 0.8; }
     .filter-chip .remove {
-      font-size: 10px;
-      opacity: 0.7;
+      font-size: 14px;
+      opacity: 0.6;
+      font-weight: 300;
+      line-height: 1;
     }
     .clear-btn {
       padding: 6px 10px;
@@ -410,7 +422,10 @@
   <div id="list-view">
     <div class="header">
       <input type="text" class="search" id="search" placeholder="Search quests...">
-      <button class="header-btn" id="sort-btn">↕️ Updated</button>
+      <button class="header-btn" id="sort-btn">
+        <svg viewBox="0 0 16 16"><path d="M3 4.5a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm2 3a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm2 3a.5.5 0 01.5-.5h1a.5.5 0 010 1h-1a.5.5 0 01-.5-.5z"/></svg>
+        <span id="sort-label">Updated</span>
+      </button>
     </div>
     
     <div class="filter-bar" id="filter-bar">
@@ -652,14 +667,15 @@
     function renderFilterBar() {
       const bar = document.getElementById('filter-bar');
       let html = `<button class="add-filter-btn" id="add-filter-btn" onclick="openFilterSheet()">
-        <span>+</span> Filter
+        <svg viewBox="0 0 16 16"><path d="M8 2a.5.5 0 01.5.5v5h5a.5.5 0 010 1h-5v5a.5.5 0 01-1 0v-5h-5a.5.5 0 010-1h5v-5A.5.5 0 018 2z"/></svg>
+        Filter
       </button>`;
 
       // Topic chips
       filters.topics.forEach(t => {
         const cfg = topicConfig[t] || { emoji: '📁', label: t };
         html += `<button class="filter-chip" onclick="removeFilter('topic', '${t}')">
-          ${cfg.emoji} ${cfg.label} <span class="remove">✕</span>
+          ${cfg.emoji} ${cfg.label} <span class="remove">×</span>
         </button>`;
       });
 
@@ -667,14 +683,14 @@
       filters.statuses.forEach(s => {
         const cfg = statusConfig[s] || { emoji: '⚪', label: s };
         html += `<button class="filter-chip" onclick="removeFilter('status', '${s}')">
-          ${cfg.emoji} ${cfg.label} <span class="remove">✕</span>
+          ${cfg.emoji} ${cfg.label} <span class="remove">×</span>
         </button>`;
       });
 
       // Time chip
       if (filters.timeHours > 0) {
         html += `<button class="filter-chip" onclick="removeFilter('time', ${filters.timeHours})">
-          🕐 ${timeConfig[filters.timeHours]} <span class="remove">✕</span>
+          🕐 ${timeConfig[filters.timeHours]} <span class="remove">×</span>
         </button>`;
       }
 
@@ -743,7 +759,7 @@
       container.querySelectorAll('.sheet-option').forEach(btn => {
         btn.addEventListener('click', () => {
           currentSort = btn.dataset.sort;
-          document.getElementById('sort-btn').textContent = '↕️ ' + sortConfig[currentSort].split(' ').pop();
+          document.getElementById('sort-label').textContent = sortConfig[currentSort].split(' ').pop();
           closeSortSheet();
           renderQuests();
         });
