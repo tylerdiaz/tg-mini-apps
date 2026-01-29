@@ -892,6 +892,11 @@
         .select('*')
         .order('created_at', { ascending: true });
       
+      const { data: notes } = await db
+        .from('quest_notes')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
       questLogs = {};
       if (logs) {
         logs.forEach(log => {
@@ -913,6 +918,14 @@
         prs.forEach(pr => {
           if (!questPrs[pr.quest_id]) questPrs[pr.quest_id] = [];
           questPrs[pr.quest_id].push(pr);
+        });
+      }
+      
+      const questNotes = {};
+      if (notes) {
+        notes.forEach(note => {
+          if (!questNotes[note.quest_id]) questNotes[note.quest_id] = [];
+          questNotes[note.quest_id].push(note);
         });
       }
       
@@ -939,7 +952,8 @@
         pr_merged_at: q.pr_merged_at,
         pingcode_ticket: q.pingcode_ticket,
         obsidian_note: q.obsidian_note,
-        prs: questPrs[q.id] || []
+        prs: questPrs[q.id] || [],
+        notes: questNotes[q.id] || []
       }));
       
       renderFilterBar();
@@ -953,6 +967,7 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_logs' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_assets' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_prs' }, () => loadQuests())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_notes' }, () => loadQuests())
         .subscribe();
     }
 
@@ -1062,20 +1077,11 @@
       return renderPrCards(quest);
     }
     
-    // Render Obsidian link (format: "vault:path/to/note" or just "path/to/note" for default vault)
-    function renderObsidianLink(quest) {
-      if (!quest.obsidian_note) return '';
-      
-      let vault, path;
-      if (quest.obsidian_note.includes(':')) {
-        [vault, path] = quest.obsidian_note.split(':', 2);
-      } else {
-        vault = '19Pine';  // default vault
-        path = quest.obsidian_note;
-      }
-      
-      // Remove .md extension if present for display
-      const displayPath = path.replace(/\.md$/, '').split('/').pop();
+    // Render single Obsidian note link
+    function renderSingleObsidianLink(note) {
+      const vault = note.vault || '19Pine';
+      const path = note.path;
+      const title = note.title || path.replace(/\.md$/, '').split('/').pop();
       
       const obsidianUrl = `obsidian://open?vault=${encodeURIComponent(vault)}&file=${encodeURIComponent(path)}`;
       
@@ -1086,12 +1092,36 @@
             <span style="color:#8b5cf6;font-weight:600;">Obsidian</span>
             <span class="pr-card-state" style="background:rgba(139,92,246,0.15);color:#8b5cf6;">${vault}</span>
           </div>
-          <div class="pr-card-title">${displayPath}</div>
+          <div class="pr-card-title">${title}</div>
           <div class="pr-card-stats">
             <span class="pr-card-stat">${icon('file-text', 12)} ${path}</span>
           </div>
         </a>
       `;
+    }
+    
+    function renderObsidianLinks(quest) {
+      // Use new notes array if available
+      if (quest.notes && quest.notes.length > 0) {
+        return quest.notes.map(note => renderSingleObsidianLink(note)).join('');
+      }
+      // Legacy: single obsidian_note field
+      if (quest.obsidian_note) {
+        let vault, path;
+        if (quest.obsidian_note.includes(':')) {
+          [vault, path] = quest.obsidian_note.split(':', 2);
+        } else {
+          vault = '19Pine';
+          path = quest.obsidian_note;
+        }
+        return renderSingleObsidianLink({ vault, path });
+      }
+      return '';
+    }
+    
+    // Legacy function for backwards compatibility
+    function renderObsidianLink(quest) {
+      return renderObsidianLinks(quest);
     }
     
     const topicConfig = {
@@ -1718,7 +1748,7 @@
         </div>
         
         ${renderPrCards(quest)}
-        ${quest.obsidian_note ? renderObsidianLink(quest) : ''}
+        ${renderObsidianLinks(quest)}
         
         ${assetsHtml}
         
