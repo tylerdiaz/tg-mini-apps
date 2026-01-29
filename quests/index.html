@@ -855,12 +855,14 @@
       const cfg = prStateConfig[quest.pr_state] || prStateConfig.OPEN;
       const stateClass = quest.pr_state?.toLowerCase() || 'open';
       
-      // Format timestamp
-      let timestamp = '';
-      if (quest.pr_merged_at) {
-        timestamp = `Merged ${timeAgo(quest.pr_merged_at.split('T')[0])}`;
-      } else if (quest.pr_created_at) {
-        timestamp = `Opened ${timeAgo(quest.pr_created_at.split('T')[0])}`;
+      // Format state label with timestamp
+      let stateLabel = cfg.label;
+      if (quest.pr_state === 'MERGED' && quest.pr_merged_at) {
+        stateLabel = `Merged ${timeAgo(quest.pr_merged_at.split('T')[0])} ago`;
+      } else if (quest.pr_state === 'OPEN' && quest.pr_created_at) {
+        stateLabel = `Opened ${timeAgo(quest.pr_created_at.split('T')[0])} ago`;
+      } else if (quest.pr_state === 'CLOSED' && quest.pr_created_at) {
+        stateLabel = `Closed`;
       }
       
       const url = quest.pr_url || `https://github.com/${quest.pr_repo}/pull/${quest.pr_number}`;
@@ -870,8 +872,7 @@
           <div class="pr-card-header">
             ${icon('git-pull-request', 18, cfg.color)}
             <span class="pr-card-number">#${quest.pr_number}</span>
-            <span class="pr-card-state ${stateClass}">${cfg.label}</span>
-            ${timestamp ? `<span class="pr-card-time">${timestamp}</span>` : ''}
+            <span class="pr-card-state ${stateClass}">${stateLabel}</span>
           </div>
           <div class="pr-card-title">${quest.pr_title || 'Untitled PR'}</div>
           <div class="pr-card-stats">
@@ -1285,8 +1286,14 @@
             <div class="log-content">${item.entries.map(e => "• " + e).join("<br>")}</div>
           </div>`;
         } else if (item.entry) {
-          // New Supabase format
-          const logDate = item.logged_at ? new Date(item.logged_at).toLocaleDateString() : '';
+          // New Supabase format with time
+          let logDate = '';
+          if (item.logged_at) {
+            const d = new Date(item.logged_at);
+            const date = d.toLocaleDateString();
+            const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            logDate = `${date} ${time}`;
+          }
           logHtml += `<div class="log-entry">
             <div class="log-date">${logDate}</div>
             <div class="log-content">• ${item.entry}</div>
