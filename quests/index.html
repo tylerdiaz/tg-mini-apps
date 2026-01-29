@@ -343,6 +343,65 @@
       opacity: 1;
       pointer-events: auto;
     }
+    
+    /* Desktop two-column layout */
+    .detail-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .detail-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .detail-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .detail-sidebar .pr-card {
+      margin: 0;
+    }
+    
+    @media (min-width: 768px) {
+      .detail-view {
+        padding: 24px 32px;
+      }
+      .detail-layout {
+        flex-direction: row;
+        gap: 32px;
+      }
+      .detail-main {
+        flex: 1.618; /* golden ratio */
+      }
+      .detail-sidebar {
+        flex: 1;
+        max-width: 340px;
+        position: sticky;
+        top: 24px;
+        align-self: flex-start;
+      }
+      .sidebar-section {
+        background: var(--secondary-bg);
+        border-radius: 10px;
+        padding: 16px;
+      }
+      .sidebar-section-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--hint);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+      }
+      .sidebar-section .pr-card {
+        background: rgba(255,255,255,0.03);
+        margin-bottom: 8px;
+      }
+      .sidebar-section .pr-card:last-child {
+        margin-bottom: 0;
+      }
+    }
     .back-btn {
       display: none; /* Hidden - Telegram handles back navigation */
     }
@@ -1741,6 +1800,29 @@
       const prMatch = quest.context?.match(/PR[:\s#]*(\d+)|github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/i);
       const prLink = quest.pr_url || (prMatch ? `https://github.com/RunVid/webapp/pull/${prMatch[1] || prMatch[2]}` : null);
       
+      // Build sidebar content (PRs + Notes)
+      const prsHtml = renderPrCards(quest);
+      const notesHtml = renderObsidianLinks(quest);
+      const hasSidebar = prsHtml || notesHtml;
+      
+      let sidebarHtml = '';
+      if (hasSidebar) {
+        sidebarHtml = '<div class="detail-sidebar">';
+        if (prsHtml) {
+          sidebarHtml += `<div class="sidebar-section">
+            <div class="sidebar-section-title">${icon('git-pull-request', 12)} Pull Requests</div>
+            ${prsHtml}
+          </div>`;
+        }
+        if (notesHtml) {
+          sidebarHtml += `<div class="sidebar-section">
+            <div class="sidebar-section-title">${icon('book-open', 12)} Notes</div>
+            ${notesHtml}
+          </div>`;
+        }
+        sidebarHtml += '</div>';
+      }
+      
       document.getElementById("detail-content").innerHTML = `
         <div class="detail-title">
           <span class="quest-topic" style="margin-right: 8px;">${icon(topicCfg.icon, 16)} ${topicCfg.label}</span>
@@ -1749,23 +1831,25 @@
         <span class="detail-status ${quest.status}">${icon(cfg.icon, 14, cfg.color)} ${cfg.label}</span>
         ${quest.collaborator ? `<span class="detail-status" style="margin-left: 8px; background: var(--secondary-bg); color: var(--text);">${icon('users', 12)} ${quest.collaborator}</span>` : ""}
         
-        <div class="quest-summary">
-          <div class="quest-summary-label">Summary</div>
-          ${summary}
-        </div>
-        
-        ${renderPrCards(quest)}
-        ${renderObsidianLinks(quest)}
-        
-        ${assetsHtml}
-        
-        <div class="section-header">Activity</div>
-        ${logHtml}
-        
-        <div class="action-bar">
-          <button class="action-btn secondary" onclick="abandonQuest()">${icon('circle-x', 16)} Abandon</button>
-          <button class="action-btn secondary" onclick="archiveQuest()">${icon('archive', 16)} Archive</button>
-          <button class="action-btn primary" onclick="markDone()">${icon('check-circle-2', 16)} Done</button>
+        <div class="detail-layout">
+          <div class="detail-main">
+            <div class="quest-summary">
+              <div class="quest-summary-label">Summary</div>
+              ${summary}
+            </div>
+            
+            ${assetsHtml}
+            
+            <div class="section-header">Activity</div>
+            ${logHtml}
+            
+            <div class="action-bar">
+              <button class="action-btn secondary" onclick="abandonQuest()">${icon('circle-x', 16)} Abandon</button>
+              <button class="action-btn secondary" onclick="archiveQuest()">${icon('archive', 16)} Archive</button>
+              <button class="action-btn primary" onclick="markDone()">${icon('check-circle-2', 16)} Done</button>
+            </div>
+          </div>
+          ${sidebarHtml}
         </div>
       `;
       
