@@ -196,6 +196,48 @@
       color: var(--hint);
       padding: 40px 20px;
     }
+    .section-divider {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 20px 0 10px;
+      padding-left: 4px;
+    }
+    .quest-card.completed {
+      opacity: 0.6;
+    }
+    
+    /* Summary section */
+    .quest-summary {
+      background: var(--secondary-bg);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .quest-summary-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--hint);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .quest-pr-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(51, 144, 236, 0.15);
+      color: var(--link);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      text-decoration: none;
+      margin-top: 8px;
+    }
+    .quest-pr-link:hover { opacity: 0.8; }
 
     /* Results count */
     .results-count {
@@ -247,9 +289,13 @@
       padding: 0;
     }
     .detail-title {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 600;
       margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
     }
     .detail-status {
       display: inline-block;
@@ -736,6 +782,36 @@
     
     const fileIcons = { image: "🖼️", audio: "🎵", pdf: "📄", csv: "📊", json: "📋", code: "💻", text: "📝", file: "📎" };
     
+    function generateSummary(quest) {
+      const status = quest.status || 'active';
+      const context = quest.context || '';
+      const lastLog = quest.log?.[0]?.entry || quest.log?.[0]?.entries?.[0] || '';
+      
+      // Status-based framing
+      let statusPhrase = '';
+      switch (status) {
+        case 'investigating': statusPhrase = '🔍 <strong>Investigating:</strong> '; break;
+        case 'ready': statusPhrase = '🟢 <strong>Ready to start:</strong> '; break;
+        case 'active': statusPhrase = '🔵 <strong>In progress:</strong> '; break;
+        case 'blocked': statusPhrase = '🟡 <strong>Blocked:</strong> '; break;
+        case 'done': statusPhrase = '✅ <strong>Completed:</strong> '; break;
+        case 'archived': statusPhrase = '📦 <strong>Archived:</strong> '; break;
+        default: statusPhrase = '';
+      }
+      
+      // Build summary from context (truncate if long)
+      let aboutText = context.length > 200 ? context.slice(0, 200) + '...' : context;
+      if (!aboutText) aboutText = '<em>No context yet</em>';
+      
+      // What's next from last log
+      let nextText = '';
+      if (lastLog && status !== 'done' && status !== 'archived') {
+        nextText = `<br><br>📌 <strong>Latest:</strong> ${lastLog.slice(0, 100)}${lastLog.length > 100 ? '...' : ''}`;
+      }
+      
+      return statusPhrase + aboutText + nextText;
+    }
+    
     function getFileType(mimeType, filename) {
       if (!mimeType) mimeType = '';
       if (!filename) filename = '';
@@ -1037,6 +1113,32 @@
         </div>`;
       });
       
+      // Add recently completed section (3 most recent done/archived)
+      const recentlyCompleted = QUESTS
+        .filter(q => q.status === 'done' || q.status === 'archived')
+        .sort((a, b) => (b.updated || '').localeCompare(a.updated || ''))
+        .slice(0, 3);
+      
+      if (recentlyCompleted.length > 0 && !filters.statuses.includes('done') && !filters.statuses.includes('archived')) {
+        html += `<div class="section-divider">Recently Completed</div>`;
+        recentlyCompleted.forEach(q => {
+          const cfg = statusConfig[q.status] || statusConfig.done;
+          const topicCfg = topicConfig[q.topic] || { emoji: '📁', label: q.topic };
+          html += `<div class="quest-card completed" onclick="openQuest('${q.id}')">
+            <span class="quest-status-icon">${cfg.emoji}</span>
+            <div class="quest-content">
+              <div class="quest-title">
+                <span class="quest-title-text">${q.title}</span>
+              </div>
+              <div class="quest-meta">
+                <span class="quest-topic">${topicCfg.emoji} ${q.topic}</span>
+                <span class="quest-time">${timeAgo(q.updated)}</span>
+              </div>
+            </div>
+          </div>`;
+        });
+      }
+      
       container.innerHTML = html;
     }
 
@@ -1090,14 +1192,28 @@
         assetsHtml += "</div>";
       }
 
+      const topicCfg = topicConfig[quest.topic] || { emoji: '📁', label: quest.topic };
+      
+      // Generate smart summary
+      const summary = generateSummary(quest);
+      
+      // Check for PR link in context
+      const prMatch = quest.context?.match(/PR[:\s#]*(\d+)|github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/i);
+      const prLink = quest.pr_url || (prMatch ? `https://github.com/RunVid/webapp/pull/${prMatch[1] || prMatch[2]}` : null);
+      
       document.getElementById("detail-content").innerHTML = `
-        <div class="detail-title">${quest.title}</div>
+        <div class="detail-title">
+          <span class="quest-topic" style="margin-right: 8px;">${topicCfg.emoji} ${topicCfg.label}</span>
+          ${quest.title}
+        </div>
         <span class="detail-status ${quest.status}">${cfg.emoji} ${cfg.label}</span>
+        ${quest.collaborator ? `<span class="detail-status" style="margin-left: 8px; background: var(--secondary-bg); color: var(--text);">w/ ${quest.collaborator}</span>` : ""}
         
-        <div class="section-header">Context</div>
-        <p class="context-text">${quest.context || '<em>No context provided</em>'}</p>
-        
-        ${quest.collaborator ? `<div class="section-header">Collaborator</div><p class="context-text">${quest.collaborator}</p>` : ""}
+        <div class="quest-summary">
+          <div class="quest-summary-label">Summary</div>
+          ${summary}
+          ${prLink ? `<a href="${prLink}" target="_blank" class="quest-pr-link">🔗 View PR</a>` : ''}
+        </div>
         
         ${assetsHtml}
         
