@@ -572,10 +572,14 @@
       transform: translateX(-30px);
     }
     /* Hide action bar during nav to prevent flash */
+    .action-bar {
+      transition: opacity 80ms ease-out 100ms; /* 100ms delay on appear */
+    }
     #detail-content.nav-out-left .action-bar,
     #detail-content.nav-out-right .action-bar,
     #detail-content.nav-in-left .action-bar,
-    #detail-content.nav-in-right .action-bar {
+    #detail-content.nav-in-right .action-bar,
+    .action-bar.nav-hidden {
       opacity: 0 !important;
       transition: none !important;
     }
@@ -3035,14 +3039,20 @@
         // Actually load the quest
         openQuest(questId);
         
+        // Hide action bar until fully settled
+        const actionBar = content.querySelector('.action-bar');
+        if (actionBar) actionBar.classList.add('nav-hidden');
+        
         // Force reflow then animate in
         content.offsetHeight;
         content.style.transition = '';
         content.classList.remove('nav-in-right', 'nav-in-left');
         
+        // Reveal action bar after delay
         setTimeout(() => {
+          if (actionBar) actionBar.classList.remove('nav-hidden');
           isNavigating = false;
-        }, 120);
+        }, 150);
       }, 120);
     }
     
