@@ -263,6 +263,30 @@
     .detail-status.active { background: #3b82f622; color: #3b82f6; }
     .detail-status.blocked { background: #eab30822; color: #eab308; }
     .detail-status.done { background: #10b98122; color: #10b981; }
+    .detail-status.archived { background: #6b728022; color: #6b7280; }
+    
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed var(--hint);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      color: var(--hint);
+      font-size: 13px;
+      margin: 12px 0;
+      transition: all 150ms ease-in-out;
+      display: none;
+    }
+    body:not(.tg-webapp) .drop-zone { display: block; }
+    .drop-zone.dragover {
+      border-color: var(--btn);
+      background: rgba(51, 144, 236, 0.1);
+      color: var(--btn);
+    }
+    .drop-zone.uploading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
     .section-header {
       font-size: 12px;
       font-weight: 600;
@@ -675,7 +699,8 @@
       ready: { emoji: '🟢', label: 'Ready' },
       active: { emoji: '🔵', label: 'Active' },
       blocked: { emoji: '🟡', label: 'Blocked' },
-      done: { emoji: '✅', label: 'Done' }
+      done: { emoji: '✅', label: 'Done' },
+      archived: { emoji: '📦', label: 'Archived' }
     };
     
     const topicConfig = {
@@ -985,14 +1010,11 @@
       filtered.forEach(q => {
         const cfg = statusConfig[q.status] || statusConfig.active;
         const topicCfg = topicConfig[q.topic] || { emoji: '📁', label: q.topic };
-        const showPriority = q.priority === 'P0' || q.priority === 'P1';
-        
         html += `<div class="quest-card" onclick="openQuest('${q.id}')">
           <span class="quest-status-icon">${cfg.emoji}</span>
           <div class="quest-content">
             <div class="quest-title">
               <span class="quest-title-text">${q.title}</span>
-              ${showPriority ? `<span class="priority-badge ${q.priority}">${q.priority}</span>` : ''}
             </div>
             <div class="quest-meta">
               <span class="quest-topic">${topicCfg.emoji} ${q.topic}</span>
@@ -1070,19 +1092,26 @@
         <div class="section-header">Log</div>
         ${logHtml || '<p class="context-text" style="opacity:0.5">No log entries yet</p>'}
         
+        <div class="drop-zone" id="drop-zone">
+          📎 Drop files here to attach
+        </div>
+        
         <div class="action-bar">
-          <button class="action-btn secondary" onclick="addLogEntry()">📝 Add Log</button>
-          <button class="action-btn primary" onclick="markDone()">✅ Mark Done</button>
+          <button class="action-btn secondary" onclick="archiveQuest()">📦 Archive</button>
+          <button class="action-btn primary" onclick="markDone()">✅ Done</button>
         </div>
       `;
       
       document.getElementById("detail-view").classList.add("open");
-      if (tg) tg.BackButton.show();
+      if (isTelegram) tg.BackButton.show();
+      
+      // Setup drop zone for browser mode
+      if (!isTelegram) setupDropZone();
     }
 
     function closeDetail() {
       document.getElementById("detail-view").classList.remove("open");
-      if (tg) tg.BackButton.hide();
+      if (isTelegram) tg.BackButton.hide();
       currentQuest = null;
     }
     
@@ -1121,7 +1150,6 @@
       if (isTelegram) {
         tg.sendData(JSON.stringify(payload));
       } else {
-        // In browser mode, actually update via Supabase for testing
         db.from('quests')
           .update({ status: 'done', updated_at: new Date().toISOString() })
           .eq('id', currentQuest.id)
@@ -1130,6 +1158,98 @@
             closeDetail();
           });
       }
+    }
+    
+    function archiveQuest() {
+      if (!currentQuest) return;
+      if (isTelegram) {
+        tg.sendData(JSON.stringify({
+          action: 'archive',
+          quest_id: currentQuest.id
+        }));
+      } else {
+        db.from('quests')
+          .update({ status: 'archived', updated_at: new Date().toISOString() })
+          .eq('id', currentQuest.id)
+          .then(() => {
+            showToast(`📦 Archived "${currentQuest.title}"`);
+            closeDetail();
+          });
+      }
+    }
+    
+    // Drag-drop file upload (browser mode only)
+    function setupDropZone() {
+      const dropZone = document.getElementById('drop-zone');
+      if (!dropZone) return;
+      
+      ['dragenter', 'dragover'].forEach(e => {
+        dropZone.addEventListener(e, (ev) => {
+          ev.preventDefault();
+          dropZone.classList.add('dragover');
+        });
+      });
+      
+      ['dragleave', 'drop'].forEach(e => {
+        dropZone.addEventListener(e, () => {
+          dropZone.classList.remove('dragover');
+        });
+      });
+      
+      dropZone.addEventListener('drop', async (ev) => {
+        ev.preventDefault();
+        if (!currentQuest || isTelegram) return;
+        
+        const files = ev.dataTransfer.files;
+        if (!files.length) return;
+        
+        dropZone.classList.add('uploading');
+        dropZone.textContent = '⏳ Uploading...';
+        
+        for (const file of files) {
+          await uploadFile(file);
+        }
+        
+        dropZone.classList.remove('uploading');
+        dropZone.textContent = '📎 Drop files here to attach';
+      });
+    }
+    
+    async function uploadFile(file) {
+      if (!currentQuest) return;
+      
+      const timestamp = Date.now();
+      const storagePath = `${currentQuest.id}/${timestamp}-${file.name}`;
+      
+      // Upload to Supabase Storage
+      const { error: uploadError } = await db.storage
+        .from('quest-assets')
+        .upload(storagePath, file);
+      
+      if (uploadError) {
+        showToast(`❌ Upload failed: ${uploadError.message}`);
+        console.error('Upload error:', uploadError);
+        return;
+      }
+      
+      // Create asset record
+      const { error: dbError } = await db
+        .from('quest_assets')
+        .insert({
+          quest_id: currentQuest.id,
+          name: file.name,
+          storage_path: storagePath,
+          mime_type: file.type,
+          size_bytes: file.size
+        });
+      
+      if (dbError) {
+        showToast(`❌ DB error: ${dbError.message}`);
+        console.error('DB error:', dbError);
+        return;
+      }
+      
+      showToast(`✓ Uploaded ${file.name}`);
     }
 
     // Event listeners
