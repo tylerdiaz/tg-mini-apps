@@ -3609,6 +3609,56 @@
       archived: { icon: 'archive', color: '#6b7280', label: 'Archived' }
     };
     
+    // Render GitHub-flavored markdown to HTML
+    function renderGitHubMarkdown(text) {
+      if (!text) return '';
+      
+      // Escape HTML first
+      let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      
+      // Code blocks (```)
+      html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+        return `<pre style="background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:6px;overflow-x:auto;font-family:Inconsolata,monospace;font-size:12px;margin:8px 0;"><code>${code.trim()}</code></pre>`;
+      });
+      
+      // Inline code (`)
+      html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px;font-family:Inconsolata,monospace;font-size:12px;">$1</code>');
+      
+      // Bold (**text** or __text__)
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+      
+      // Italic (*text* or _text_)
+      html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+      
+      // Links [text](url)
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--link);">$1</a>');
+      
+      // @mentions
+      html = html.replace(/@(\w+)/g, '<strong style="color:var(--link);">@$1</strong>');
+      
+      // #references (PR/issue numbers)
+      html = html.replace(/#(\d+)/g, '<strong style="color:var(--link);">#$1</strong>');
+      
+      // Bullet lists (- or *)
+      html = html.replace(/^[\-\*]\s+(.+)$/gm, '<li style="margin-left:16px;list-style:disc;">$1</li>');
+      
+      // Numbered lists
+      html = html.replace(/^\d+\.\s+(.+)$/gm, '<li style="margin-left:16px;list-style:decimal;">$1</li>');
+      
+      // Line breaks
+      html = html.replace(/\n/g, '<br>');
+      
+      // Clean up double <br> after lists
+      html = html.replace(/<\/li><br>/g, '</li>');
+      
+      return html;
+    }
+    
     function icon(name, size = 16, color = 'currentColor') {
       return `<i data-lucide="${name}" style="width:${size}px;height:${size}px;color:${color};display:inline-block;vertical-align:middle;"></i>`;
     }
@@ -4061,12 +4111,9 @@
           // PR comment/review
           const isReview = item.activity_type === 'review';
           
-          // Truncate long comments
+          // Render GitHub markdown
           let body = item.entry || '';
-          if (body.length > 300) {
-            body = body.slice(0, 300) + '...';
-          }
-          body = body.replace(/\n/g, '<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&lt;br&gt;/g, '<br>');
+          body = renderGitHubMarkdown(body);
           
           const prLink = item.github_url ? 
             `<a href="${item.github_url}" target="_blank" style="color:var(--link);text-decoration:none;">#${item.pr_number}</a>` : 
