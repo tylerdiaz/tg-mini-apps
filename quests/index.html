@@ -796,6 +796,10 @@
       border-radius: 8px;
       font-size: 14px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
     .action-btn.primary {
       background: var(--btn);
@@ -804,6 +808,56 @@
     .action-btn.secondary {
       background: var(--secondary-bg);
       color: var(--text);
+    }
+    .action-btn.overflow-btn {
+      flex: 0;
+      width: 44px;
+      background: var(--secondary-bg);
+      color: var(--hint);
+    }
+    .overflow-menu {
+      position: absolute;
+      bottom: 60px;
+      right: 12px;
+      background: var(--bg);
+      border: 1px solid var(--secondary-bg);
+      border-radius: 10px;
+      padding: 6px;
+      min-width: 180px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      display: none;
+      z-index: 50;
+    }
+    .overflow-menu.open {
+      display: block;
+    }
+    .overflow-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      background: none;
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      text-align: left;
+    }
+    .overflow-item:hover {
+      background: var(--secondary-bg);
+    }
+    .overflow-item.danger {
+      color: #ef4444;
+    }
+    .overflow-divider {
+      height: 1px;
+      background: var(--secondary-bg);
+      margin: 6px 0;
+    }
+    .action-bar {
+      position: relative;
     }
 
     /* Bottom Sheet */
@@ -2031,9 +2085,20 @@
             ${logHtml}
             
             <div class="action-bar">
-              <button class="action-btn secondary" onclick="abandonQuest()">${icon('circle-x', 16)} Abandon</button>
-              <button class="action-btn secondary" onclick="archiveQuest()">${icon('archive', 16)} Archive</button>
-              <button class="action-btn primary" onclick="markDone()">${icon('check-circle-2', 16)} Done</button>
+              ${getSmartCTA(quest)}
+              <button class="action-btn overflow-btn" onclick="toggleOverflowMenu()">
+                ${icon('more-horizontal', 18)}
+              </button>
+              <div class="overflow-menu" id="overflow-menu">
+                <button class="overflow-item" onclick="setStatus('investigating')">${icon('search', 14)} Investigating</button>
+                <button class="overflow-item" onclick="setStatus('ready')">${icon('circle-check', 14)} Ready</button>
+                <button class="overflow-item" onclick="setStatus('active')">${icon('play-circle', 14)} Active</button>
+                <button class="overflow-item" onclick="setStatus('blocked')">${icon('pause-circle', 14)} Blocked</button>
+                <div class="overflow-divider"></div>
+                <button class="overflow-item" onclick="markDone()">${icon('check-circle-2', 14)} Done</button>
+                <button class="overflow-item danger" onclick="abandonQuest()">${icon('circle-x', 14)} Abandon</button>
+                <button class="overflow-item" onclick="archiveQuest()">${icon('archive', 14)} Archive</button>
+              </div>
             </div>
           </div>
           ${sidebarHtml}
@@ -2095,6 +2160,84 @@
           });
       }
     }
+    
+    function getSmartCTA(quest) {
+      const status = quest.status || 'active';
+      const hasConflict = quest.pr_mergeable === 'CONFLICTING' || 
+        (quest.prs && quest.prs.some(p => p.mergeable === 'CONFLICTING'));
+      const prUrl = quest.pr_url || (quest.prs?.[0]?.pr_url);
+      
+      // Conflict takes priority for active quests
+      if (hasConflict && status === 'active' && prUrl) {
+        return `<a href="${prUrl}" target="_blank" class="action-btn primary" style="text-decoration:none;">
+          ${icon('git-branch', 16)} Fix Conflict
+        </a>`;
+      }
+      
+      switch (status) {
+        case 'investigating':
+          return `<button class="action-btn primary" onclick="setStatus('active')">
+            ${icon('play', 16)} Start Working
+          </button>`;
+        case 'ready':
+          return `<button class="action-btn primary" onclick="setStatus('active')">
+            ${icon('play', 16)} Start Working
+          </button>`;
+        case 'blocked':
+          return `<button class="action-btn primary" onclick="setStatus('active')">
+            ${icon('circle-check', 16)} Unblock
+          </button>`;
+        case 'active':
+          return `<button class="action-btn primary" onclick="markDone()">
+            ${icon('check-circle-2', 16)} Mark Done
+          </button>`;
+        case 'done':
+          return `<button class="action-btn primary" onclick="archiveQuest()">
+            ${icon('archive', 16)} Archive
+          </button>`;
+        case 'abandoned':
+        case 'archived':
+          return `<button class="action-btn primary" onclick="setStatus('active')">
+            ${icon('rotate-ccw', 16)} Reopen
+          </button>`;
+        default:
+          return `<button class="action-btn primary" onclick="markDone()">
+            ${icon('check-circle-2', 16)} Mark Done
+          </button>`;
+      }
+    }
+    
+    function toggleOverflowMenu() {
+      const menu = document.getElementById('overflow-menu');
+      menu.classList.toggle('open');
+    }
+    
+    async function setStatus(newStatus) {
+      if (!currentQuest) return;
+      
+      const { error } = await db
+        .from('quests')
+        .update({ status: newStatus })
+        .eq('id', currentQuest.id);
+      
+      if (error) {
+        showToast(`❌ Failed: ${error.message}`);
+        return;
+      }
+      
+      showToast(`✓ Status → ${newStatus}`);
+      document.getElementById('overflow-menu').classList.remove('open');
+      // Trigger will auto-log the status change
+    }
+    
+    // Close overflow menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('overflow-menu');
+      const btn = e.target.closest('.overflow-btn');
+      if (menu && !btn && !e.target.closest('.overflow-menu')) {
+        menu.classList.remove('open');
+      }
+    });
     
     function toggleSummaryEdit() {
       const display = document.getElementById('summary-display');
