@@ -419,20 +419,55 @@
       color: var(--text);
       opacity: 0.9;
     }
-    .log-entry {
-      background: var(--secondary-bg);
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 8px;
+    .log-timeline {
+      border-left: 2px solid var(--secondary-bg);
+      margin-left: 8px;
+      padding-left: 16px;
     }
-    .log-date {
-      font-size: 11px;
+    .log-date-group {
+      font-size: 10px;
+      font-weight: 600;
       color: var(--hint);
-      margin-bottom: 4px;
+      text-transform: uppercase;
+      margin: 12px 0 6px -20px;
+      padding-left: 20px;
+      position: relative;
+    }
+    .log-date-group::before {
+      content: '';
+      position: absolute;
+      left: -5px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 8px;
+      height: 8px;
+      background: var(--secondary-bg);
+      border-radius: 50%;
+    }
+    .log-entry {
+      padding: 4px 0;
+      position: relative;
+    }
+    .log-entry::before {
+      content: '';
+      position: absolute;
+      left: -20px;
+      top: 10px;
+      width: 4px;
+      height: 4px;
+      background: var(--hint);
+      border-radius: 50%;
     }
     .log-content {
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.4;
+      color: var(--text);
+      opacity: 0.85;
+    }
+    .log-time {
+      font-size: 10px;
+      color: var(--hint);
+      margin-left: 4px;
     }
     
     /* Assets */
@@ -1337,29 +1372,56 @@
       const cfg = statusConfig[quest.status] || statusConfig.active;
 
       let logHtml = "";
-      // Handle both old format (day.entries[]) and new Supabase format (entry, logged_at)
+      // Group logs by date and dedupe
+      const logsByDate = {};
+      const seenEntries = new Set();
+      
       quest.log.forEach(item => {
+        let dateKey = 'Unknown';
+        let time = '';
+        let entry = '';
+        
         if (item.entries) {
           // Old format
-          logHtml += `<div class="log-entry">
-            <div class="log-date">${item.date}</div>
-            <div class="log-content">${item.entries.map(e => "• " + e).join("<br>")}</div>
-          </div>`;
+          dateKey = item.date || 'Unknown';
+          item.entries.forEach(e => {
+            const key = e.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+            if (!seenEntries.has(key)) {
+              seenEntries.add(key);
+              if (!logsByDate[dateKey]) logsByDate[dateKey] = [];
+              logsByDate[dateKey].push({ entry: e, time: '' });
+            }
+          });
         } else if (item.entry) {
-          // New Supabase format with time
-          let logDate = '';
+          // New Supabase format
           if (item.logged_at) {
             const d = new Date(item.logged_at);
-            const date = d.toLocaleDateString();
-            const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            logDate = `${date} ${time}`;
+            dateKey = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           }
-          logHtml += `<div class="log-entry">
-            <div class="log-date">${logDate}</div>
-            <div class="log-content">• ${item.entry}</div>
-          </div>`;
+          // Dedupe by normalized entry content
+          const key = item.entry.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+          if (!seenEntries.has(key)) {
+            seenEntries.add(key);
+            if (!logsByDate[dateKey]) logsByDate[dateKey] = [];
+            logsByDate[dateKey].push({ entry: item.entry, time });
+          }
         }
       });
+      
+      // Render timeline
+      if (Object.keys(logsByDate).length > 0) {
+        logHtml = '<div class="log-timeline">';
+        Object.entries(logsByDate).forEach(([date, entries]) => {
+          logHtml += `<div class="log-date-group">${date}</div>`;
+          entries.forEach(({ entry, time }) => {
+            logHtml += `<div class="log-entry">
+              <div class="log-content">${entry}${time ? `<span class="log-time">${time}</span>` : ''}</div>
+            </div>`;
+          });
+        });
+        logHtml += '</div>';
+      }
 
       let assetsHtml = "";
       if (quest.assets && quest.assets.length > 0) {
