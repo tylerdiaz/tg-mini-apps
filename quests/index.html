@@ -1467,10 +1467,24 @@
         .eq('user_id', currentUserId);
       
       questViews = {};
-      if (views) {
+      if (views && views.length > 0) {
         views.forEach(v => {
           questViews[v.quest_id] = new Date(v.viewed_at);
         });
+      } else {
+        // First time user - mark all existing quests as read
+        const now = new Date().toISOString();
+        const bulkViews = quests.map(q => ({
+          user_id: currentUserId,
+          quest_id: q.id,
+          viewed_at: now
+        }));
+        if (bulkViews.length > 0) {
+          await db.from('quest_views').upsert(bulkViews, { onConflict: 'user_id,quest_id' });
+          bulkViews.forEach(v => {
+            questViews[v.quest_id] = new Date(now);
+          });
+        }
       }
       
       QUESTS = quests.map(q => {
