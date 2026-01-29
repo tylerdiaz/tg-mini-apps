@@ -4423,37 +4423,60 @@
           let inlineToggle = '';
           let diffBlock = '';
           
-          if (mainContent.includes('\n+ ') || mainContent.includes('\n- ')) {
-            const parts = mainContent.split('\n');
-            mainContent = parts[0];
-            const diffLines = parts.slice(1).filter(l => l.trim());
-            if (diffLines.length > 0) {
-              const diffId = 'detail-diff-' + Math.random().toString(36).substr(2, 9);
-              const diffContent = diffLines.map(l => {
-                const escaped = l.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                if (l.startsWith('+ ')) return `<span class="diff-line diff-add">${escaped}</span>`;
-                if (l.startsWith('- ')) return `<span class="diff-line diff-remove">${escaped}</span>`;
-                return `<span class="diff-line diff-context">${escaped}</span>`;
-              }).join('');
-              
-              inlineToggle = `<span class="feed-item-toggle" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">${icon('chevron-right', 10)} diff</span>`;
-              diffBlock = `<div class="feed-item-diff" id="${diffId}"><div class="diff-header">Changes</div>${diffContent}</div>`;
+          // Special handling for Navigator's "🎯 Next moves" entries
+          if (mainContent.includes('🎯 Next moves')) {
+            const body = renderGitHubMarkdown(mainContent);
+            html += `
+              <div class="activity-item">
+                <img src="navigator-avatar.jpg" alt="Navigator" class="activity-avatar" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="activity-icon comment" style="display:none;">
+                  ${icon('bot', 16)}
+                </div>
+                <div class="activity-body">
+                  <div class="activity-main">
+                    <strong style="color:var(--text);">Navigator</strong> 
+                    <span style="color:var(--hint);">suggested next steps</span>
+                  </div>
+                  <div style="margin-top:6px;padding:8px 12px;background:rgba(34,197,94,0.08);border-radius:6px;font-size:12px;line-height:1.5;color:var(--text);border-left:2px solid #22c55e;">
+                    ${body}
+                  </div>
+                  <div class="activity-meta">${timeAgoFull(item.time)}</div>
+                </div>
+              </div>
+            `;
+          } else {
+            if (mainContent.includes('\n+ ') || mainContent.includes('\n- ')) {
+              const parts = mainContent.split('\n');
+              mainContent = parts[0];
+              const diffLines = parts.slice(1).filter(l => l.trim());
+              if (diffLines.length > 0) {
+                const diffId = 'detail-diff-' + Math.random().toString(36).substr(2, 9);
+                const diffContent = diffLines.map(l => {
+                  const escaped = l.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                  if (l.startsWith('+ ')) return `<span class="diff-line diff-add">${escaped}</span>`;
+                  if (l.startsWith('- ')) return `<span class="diff-line diff-remove">${escaped}</span>`;
+                  return `<span class="diff-line diff-context">${escaped}</span>`;
+                }).join('');
+                
+                inlineToggle = `<span class="feed-item-toggle" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">${icon('chevron-right', 10)} diff</span>`;
+                diffBlock = `<div class="feed-item-diff" id="${diffId}"><div class="diff-header">Changes</div>${diffContent}</div>`;
+              }
             }
+            
+            const activity = parseActivity(mainContent, item.time);
+            html += `
+              <div class="activity-item">
+                <div class="activity-icon ${activity.type}">
+                  ${icon(activity.icon, 16)}
+                </div>
+                <div class="activity-body">
+                  <div class="activity-main">${activity.html}${inlineToggle}</div>
+                  ${diffBlock}
+                  ${activity.meta ? `<div class="activity-meta">${activity.meta}</div>` : ''}
+                </div>
+              </div>
+            `;
           }
-          
-          const activity = parseActivity(mainContent, item.time);
-          html += `
-            <div class="activity-item">
-              <div class="activity-icon ${activity.type}">
-                ${icon(activity.icon, 16)}
-              </div>
-              <div class="activity-body">
-                <div class="activity-main">${activity.html}${inlineToggle}</div>
-                ${diffBlock}
-                ${activity.meta ? `<div class="activity-meta">${activity.meta}</div>` : ''}
-              </div>
-            </div>
-          `;
         }
       });
       
