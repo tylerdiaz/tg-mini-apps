@@ -2668,21 +2668,34 @@
     // Render drafts list
     function renderDrafts() {
       const container = document.getElementById('drafts-container');
-      document.getElementById('drafts-count').textContent = 
-        `${DRAFTS.length} draft${DRAFTS.length !== 1 ? 's' : ''}`;
       
-      if (DRAFTS.length === 0) {
+      // Filter drafts by search query
+      let filtered = DRAFTS;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filtered = DRAFTS.filter(d => {
+          const inTitle = d.title?.toLowerCase().includes(query);
+          const inContext = d.context?.toLowerCase().includes(query);
+          const inDescription = d.description?.toLowerCase().includes(query);
+          return inTitle || inContext || inDescription;
+        });
+      }
+      
+      document.getElementById('drafts-count').textContent = 
+        `${filtered.length} draft${filtered.length !== 1 ? 's' : ''}`;
+      
+      if (filtered.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
-            <p>No drafts yet</p>
-            <p style="font-size:12px;margin-top:8px;opacity:0.7;">Capture ideas before they become quests</p>
+            <p>${searchQuery ? 'No matching drafts' : 'No drafts yet'}</p>
+            <p style="font-size:12px;margin-top:8px;opacity:0.7;">${searchQuery ? 'Try a different search' : 'Capture ideas before they become quests'}</p>
           </div>
         `;
         return;
       }
       
       let html = '';
-      DRAFTS.forEach(draft => {
+      filtered.forEach(draft => {
         const cfg = draftStatusConfig[draft.status] || draftStatusConfig.idea;
         const hasContext = draft.context && draft.context.trim();
         const logsCount = draft.logs?.length || 0;
@@ -4337,7 +4350,14 @@
         if (filters.topics.length > 0 && !filters.topics.includes(q.topic)) return false;
         if (filters.statuses.length > 0 && !filters.statuses.includes(q.status)) return false;
         if (!isWithinHours(q.updated, filters.timeHours)) return false;
-        if (searchQuery && !q.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const inTitle = q.title?.toLowerCase().includes(query);
+          const inContext = q.context?.toLowerCase().includes(query);
+          const inPrTitle = q.pr_title?.toLowerCase().includes(query);
+          const inCollaborator = q.collaborator?.toLowerCase().includes(query);
+          if (!inTitle && !inContext && !inPrTitle && !inCollaborator) return false;
+        }
         return true;
       });
 
@@ -5214,6 +5234,7 @@
     document.getElementById("search").addEventListener("input", (e) => {
       searchQuery = e.target.value;
       renderQuests();
+      renderDrafts();
     });
 
     document.getElementById("sort-btn").addEventListener("click", openSortSheet);
