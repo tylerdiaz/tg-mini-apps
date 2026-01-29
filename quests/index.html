@@ -2633,6 +2633,9 @@
         }
       });
 
+      // Track filtered IDs for keyboard navigation
+      filteredQuestIds = filtered.map(q => q.id);
+      
       // Results count
       document.getElementById('results-count').textContent = 
         `${filtered.length} quest${filtered.length !== 1 ? 's' : ''}`;
@@ -2914,6 +2917,42 @@
         openQuest(e.state.questId, false);
       } else {
         closeDetail();
+      }
+    });
+    
+    // Track current filtered quest list for navigation
+    let filteredQuestIds = [];
+    
+    // Keyboard navigation: left/right arrows to browse quests
+    document.addEventListener('keydown', (e) => {
+      // Only handle arrow keys
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      
+      // Skip if focused on input/textarea/contenteditable
+      const active = document.activeElement;
+      const tag = active?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || active?.isContentEditable) return;
+      if (active?.closest('.CodeMirror')) return; // Skip if in editor
+      
+      // Only navigate when detail view is open
+      if (!currentQuest || !document.getElementById('detail-view').classList.contains('open')) return;
+      
+      e.preventDefault();
+      
+      // Find current position in filtered list
+      const currentIdx = filteredQuestIds.indexOf(currentQuest.id);
+      if (currentIdx === -1) return;
+      
+      let nextIdx;
+      if (e.key === 'ArrowLeft') {
+        nextIdx = currentIdx > 0 ? currentIdx - 1 : filteredQuestIds.length - 1;
+      } else {
+        nextIdx = currentIdx < filteredQuestIds.length - 1 ? currentIdx + 1 : 0;
+      }
+      
+      const nextQuestId = filteredQuestIds[nextIdx];
+      if (nextQuestId && nextQuestId !== currentQuest.id) {
+        openQuest(nextQuestId);
       }
     });
     
