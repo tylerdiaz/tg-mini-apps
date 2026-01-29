@@ -823,6 +823,22 @@
       color: var(--hint);
       margin-left: auto;
       flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 150ms;
+    }
+    .feed-item:hover .feed-item-time {
+      opacity: 1;
+    }
+    .feed-time-divider {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 16px 0 8px;
+    }
+    .feed-time-divider:first-child {
+      padding-top: 0;
     }
     .feed-item-content {
       font-size: 12px;
@@ -1634,8 +1650,29 @@
         return;
       }
       
+      // Helper to get time group label
+      function getTimeGroup(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return 'This Week';
+        if (diffDays < 14) return 'Last Week';
+        if (diffDays < 30) return 'This Month';
+        return 'Older';
+      }
+      
       let html = '';
+      let lastGroup = '';
       activities.slice(0, 30).forEach(a => {
+        const group = getTimeGroup(a.timestamp);
+        if (group !== lastGroup) {
+          html += `<div class="feed-time-divider">${group}</div>`;
+          lastGroup = group;
+        }
         html += `
           <div class="feed-item" onclick="openQuest('${a.quest.id}')">
             <div class="feed-item-icon ${a.type}">
