@@ -303,15 +303,14 @@
       color: var(--hint) !important;
     }
     /* Hide formatting characters completely when not editing */
-    .cm-s-hypermd-light .cm-formatting-code {
-      font-size: 0 !important;
-      width: 0 !important;
-      padding: 0 !important;
-      margin: 0 !important;
+    .cm-s-hypermd-light .hmd-hidden-token,
+    .cm-s-hypermd-light .cm-formatting-code:not(.cm-formatting-code-block) {
+      display: none !important;
     }
-    .cm-s-hypermd-light .cm-formatting-code.cm-formatting-code-block {
-      font-size: inherit !important;
-      width: auto !important;
+    /* But show them when the line is active */
+    .cm-s-hypermd-light .CodeMirror-activeline .hmd-hidden-token,
+    .cm-s-hypermd-light .CodeMirror-activeline .cm-formatting-code {
+      display: inline !important;
     }
     .cm-s-hypermd-light .cm-link {
       color: var(--link) !important;
