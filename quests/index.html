@@ -1023,14 +1023,18 @@
       const cfg = prStateConfig[pr.pr_state] || prStateConfig.OPEN;
       const stateClass = pr.pr_state?.toLowerCase() || 'open';
       
-      // Format state label with timestamp
+      // Format state label with timeline
       let stateLabel = cfg.label;
+      const openedAgo = pr.pr_created_at ? timeAgoFull(pr.pr_created_at) : null;
+      
       if (pr.pr_state === 'MERGED' && pr.pr_merged_at) {
-        stateLabel = `Merged ${timeAgoFull(pr.pr_merged_at)}`;
-      } else if (pr.pr_state === 'OPEN' && pr.pr_created_at) {
-        stateLabel = `Opened ${timeAgoFull(pr.pr_created_at)}`;
-      } else if (pr.pr_state === 'CLOSED') {
-        stateLabel = pr.pr_closed_at ? `Closed ${timeAgoFull(pr.pr_closed_at)}` : 'Closed';
+        const mergedAgo = timeAgoFull(pr.pr_merged_at);
+        stateLabel = openedAgo ? `Opened ${openedAgo} → Merged ${mergedAgo}` : `Merged ${mergedAgo}`;
+      } else if (pr.pr_state === 'CLOSED' && pr.pr_closed_at) {
+        const closedAgo = timeAgoFull(pr.pr_closed_at);
+        stateLabel = openedAgo ? `Opened ${openedAgo} → Closed ${closedAgo}` : `Closed ${closedAgo}`;
+      } else if (pr.pr_state === 'OPEN' && openedAgo) {
+        stateLabel = `Opened ${openedAgo}`;
       }
       
       const url = pr.pr_url || `https://github.com/${pr.pr_repo}/pull/${pr.pr_number}`;
