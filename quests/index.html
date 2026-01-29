@@ -71,7 +71,7 @@
     }
     .add-filter-btn {
       padding: 6px 10px;
-      border: 1px dashed var(--hint);
+      border: 1px dashed rgba(153, 153, 153, 0.5);
       border-radius: 16px;
       background: transparent;
       color: var(--hint);
@@ -86,6 +86,21 @@
       width: 12px;
       height: 12px;
       fill: currentColor;
+    }
+    .quick-filter {
+      padding: 6px 10px;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      background: var(--secondary-bg);
+      color: var(--hint);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .quick-filter:active { opacity: 0.8; }
+    .quick-filter.active {
+      border-color: var(--btn);
+      background: rgba(51, 144, 236, 0.15);
+      color: var(--btn);
     }
     .filter-chip {
       padding: 6px 10px;
@@ -668,9 +683,20 @@
       const bar = document.getElementById('filter-bar');
       let html = `<button class="add-filter-btn" id="add-filter-btn" onclick="openFilterSheet()">
         <svg viewBox="0 0 16 16"><path d="M8 2a.5.5 0 01.5.5v5h5a.5.5 0 010 1h-5v5a.5.5 0 01-1 0v-5h-5a.5.5 0 010-1h5v-5A.5.5 0 018 2z"/></svg>
-        Filter
+        Filters
       </button>`;
 
+      // Quick filters for status
+      const quickFilters = ['active', 'blocked', 'done'];
+      quickFilters.forEach(status => {
+        const cfg = statusConfig[status];
+        const isActive = filters.statuses.includes(status);
+        html += `<button class="quick-filter ${isActive ? 'active' : ''}" onclick="toggleQuickFilter('${status}')">
+          ${cfg.emoji} ${cfg.label}
+        </button>`;
+      });
+
+      // Show active non-quick filters as chips
       // Topic chips
       filters.topics.forEach(t => {
         const cfg = topicConfig[t] || { emoji: '📁', label: t };
@@ -679,8 +705,8 @@
         </button>`;
       });
 
-      // Status chips
-      filters.statuses.forEach(s => {
+      // Non-quick status chips (investigating, ready)
+      filters.statuses.filter(s => !quickFilters.includes(s)).forEach(s => {
         const cfg = statusConfig[s] || { emoji: '⚪', label: s };
         html += `<button class="filter-chip" onclick="removeFilter('status', '${s}')">
           ${cfg.emoji} ${cfg.label} <span class="remove">×</span>
@@ -694,12 +720,27 @@
         </button>`;
       }
 
-      // Clear button
-      if (hasActiveFilters()) {
+      // Clear button (only if non-quick filters active)
+      const hasNonQuickFilters = filters.topics.length > 0 || 
+        filters.statuses.some(s => !quickFilters.includes(s)) || 
+        filters.timeHours > 0;
+      if (hasNonQuickFilters) {
         html += `<button class="clear-btn" onclick="clearFilters()">clear</button>`;
       }
 
       bar.innerHTML = html;
+    }
+
+    function toggleQuickFilter(status) {
+      const idx = filters.statuses.indexOf(status);
+      if (idx >= 0) {
+        filters.statuses.splice(idx, 1);
+      } else {
+        filters.statuses.push(status);
+      }
+      renderFilterBar();
+      renderFilterSheet();
+      renderQuests();
     }
 
     function renderFilterSheet() {
