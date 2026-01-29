@@ -4205,6 +4205,11 @@
       const questLog = quest.log || [];
       const prNumber = quest.pr_number;
       
+      // Don't show next steps for completed quests
+      if (['done', 'archived', 'abandoned'].includes(quest.status)) {
+        return [];
+      }
+      
       // 0. HIGHEST PRIORITY: Check for analyzed "🎯 Next moves" log entries
       // These are concrete, analyzed steps — show them instead of raw PR comments
       for (const logEntry of questLog) {
@@ -4239,41 +4244,45 @@
         }
       }
       
-      // 1. Extract action requests from PR comments (FACTS, not inference)
-      prActivity.forEach(activity => {
-        if (activity.activity_type === 'comment' || activity.activity_type === 'review') {
-          const body = activity.body || '';
-          if (/can we|please|need to|should we|add |test|fix|update/i.test(body)) {
-            let actionText = body
-              .replace(/^[\s\n]+|[\s\n]+$/g, '')
-              .split('\n')[0]
-              .substring(0, 200);
-            
-            if (actionText.length > 0) {
-              moves.push({
-                type: 'pr_comment',
-                text: actionText,
-                source: `PR #${prNumber}`,
-                author: activity.author,
-                urgent: activity.state === 'CHANGES_REQUESTED'
-              });
-            }
-          }
-        }
-      });
-      
-      // 2. Check for CHANGES_REQUESTED review state
+      // 1. Check for CHANGES_REQUESTED review state (most urgent)
       const changesRequested = prActivity.some(a => 
         a.activity_type === 'review' && a.state === 'CHANGES_REQUESTED'
       );
-      if (changesRequested && !moves.some(m => m.urgent)) {
-        moves.unshift({
+      if (changesRequested) {
+        moves.push({
           type: 'review',
           text: 'Address requested changes on PR',
           source: `PR #${prNumber}`,
           urgent: true
         });
       }
+      
+      // 2. Extract ONLY explicit action requests from PR comments
+      // Must start with action phrase to avoid grabbing random text
+      prActivity.forEach(activity => {
+        if (activity.activity_type !== 'comment' && activity.activity_type !== 'review') return;
+        if (activity.state === 'APPROVED') return; // Skip approval comments
+        
+        const body = (activity.body || '').trim();
+        if (!body || body.length < 10) return;
+        
+        // Skip thank-you messages, quotes, bot comments
+        if (/^thanks|^thank you|^lgtm|^looks good|^>/i.test(body)) return;
+        if (/bugbot|bot has reviewed/i.test(body)) return;
+        
+        // Only match if it STARTS with an action request pattern
+        const actionStart = /^(can you|could you|please|we need to|we should|you should|todo:|action:|fix:|add:|update:|consider )/i;
+        if (actionStart.test(body)) {
+          const firstLine = body.split('\n')[0].substring(0, 200);
+          moves.push({
+            type: 'pr_comment',
+            text: firstLine,
+            source: `PR #${prNumber}`,
+            author: activity.author,
+            urgent: activity.state === 'CHANGES_REQUESTED'
+          });
+        }
+      });
       
       // 3. Extract explicit "Next:" items from context
       const nextMatches = context.match(/next:\s*([^\n]+)/gi) || [];
