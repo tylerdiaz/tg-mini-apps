@@ -298,6 +298,7 @@
     .pr-badge.pr-open { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
     .pr-badge.pr-merged { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
     .pr-badge.pr-closed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .pr-badge.pr-conflict { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
     
     /* PR Card in detail */
     .pr-card {
@@ -1138,26 +1139,40 @@
     };
     
     function getPrBadge(quest) {
+      let badge = '';
+      let hasConflict = false;
+      
       // Multiple PRs from new table
       if (quest.prs && quest.prs.length > 0) {
+        hasConflict = quest.prs.some(p => p.mergeable === 'CONFLICTING');
+        
         if (quest.prs.length === 1) {
           const pr = quest.prs[0];
           const cfg = prStateConfig[pr.pr_state] || prStateConfig.OPEN;
-          return `<span class="pr-badge pr-${pr.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${pr.pr_number}</span>`;
+          badge = `<span class="pr-badge pr-${pr.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${pr.pr_number}</span>`;
+        } else {
+          // Multiple PRs - show count with mixed state indicator
+          const hasOpen = quest.prs.some(p => p.pr_state === 'OPEN');
+          const allMerged = quest.prs.every(p => p.pr_state === 'MERGED');
+          const stateClass = hasOpen ? 'open' : (allMerged ? 'merged' : 'closed');
+          const iconName = hasOpen ? 'git-pull-request' : (allMerged ? 'git-merge' : 'git-pull-request-closed');
+          const color = hasOpen ? '#22c55e' : (allMerged ? '#8b5cf6' : '#ef4444');
+          badge = `<span class="pr-badge pr-${stateClass}">${icon(iconName, 12, color)} ${quest.prs.length} PRs</span>`;
         }
-        // Multiple PRs - show count with mixed state indicator
-        const hasOpen = quest.prs.some(p => p.pr_state === 'OPEN');
-        const allMerged = quest.prs.every(p => p.pr_state === 'MERGED');
-        const stateClass = hasOpen ? 'open' : (allMerged ? 'merged' : 'closed');
-        const iconName = hasOpen ? 'git-pull-request' : (allMerged ? 'git-merge' : 'git-pull-request-closed');
-        const color = hasOpen ? '#22c55e' : (allMerged ? '#8b5cf6' : '#ef4444');
-        return `<span class="pr-badge pr-${stateClass}">${icon(iconName, 12, color)} ${quest.prs.length} PRs</span>`;
+      } else if (quest.pr_number) {
+        // Legacy single PR
+        hasConflict = quest.pr_mergeable === 'CONFLICTING';
+        const cfg = prStateConfig[quest.pr_state] || prStateConfig.OPEN;
+        const repoShort = quest.pr_repo?.split('/')[1] || '';
+        badge = `<span class="pr-badge pr-${quest.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${quest.pr_number}${repoShort ? ` • ${repoShort}` : ''}</span>`;
       }
-      // Legacy single PR
-      if (!quest.pr_number) return '';
-      const cfg = prStateConfig[quest.pr_state] || prStateConfig.OPEN;
-      const repoShort = quest.pr_repo?.split('/')[1] || '';
-      return `<span class="pr-badge pr-${quest.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${quest.pr_number}${repoShort ? ` • ${repoShort}` : ''}</span>`;
+      
+      // Add conflict warning badge
+      if (hasConflict) {
+        badge += `<span class="pr-badge pr-conflict">${icon('alert-triangle', 12, '#f59e0b')} conflict</span>`;
+      }
+      
+      return badge;
     }
     
     function renderSinglePrCard(pr) {
