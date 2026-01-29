@@ -464,6 +464,46 @@
         margin-bottom: 0;
       }
     }
+    
+    /* Compact note links */
+    .notes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .note-link {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 12px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .note-link:last-child {
+      border-bottom: none;
+    }
+    .note-link:hover {
+      color: var(--link);
+    }
+    .note-link:hover .note-vault {
+      color: var(--link);
+    }
+    .note-vault {
+      color: #8b5cf6;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .note-path {
+      color: var(--hint);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .note-link:hover .note-path {
+      color: var(--link);
+    }
     .back-btn {
       display: none; /* Hidden - Telegram handles back navigation */
     }
@@ -1311,36 +1351,15 @@
       return renderPrCards(quest);
     }
     
-    // Render single Obsidian note link
-    function renderSingleObsidianLink(note) {
-      const vault = note.vault || '19Pine';
-      const path = note.path;
-      const title = note.title || path.replace(/\.md$/, '').split('/').pop();
-      
-      const obsidianUrl = `obsidian://open?vault=${encodeURIComponent(vault)}&file=${encodeURIComponent(path)}`;
-      
-      return `
-        <a href="${obsidianUrl}" class="pr-card" style="text-decoration:none;color:inherit;display:block;border-left-color:#8b5cf6;">
-          <div class="pr-card-header">
-            ${icon('book-open', 18, '#8b5cf6')}
-            <span style="color:#8b5cf6;font-weight:600;">Obsidian</span>
-            <span class="pr-card-state" style="background:rgba(139,92,246,0.15);color:#8b5cf6;">${vault}</span>
-          </div>
-          <div class="pr-card-title">${title}</div>
-          <div class="pr-card-stats">
-            <span class="pr-card-stat">${icon('file-text', 12)} ${path}</span>
-          </div>
-        </a>
-      `;
-    }
-    
+    // Render compact Obsidian note links
     function renderObsidianLinks(quest) {
+      let notes = [];
+      
       // Use new notes array if available
       if (quest.notes && quest.notes.length > 0) {
-        return quest.notes.map(note => renderSingleObsidianLink(note)).join('');
-      }
-      // Legacy: single obsidian_note field
-      if (quest.obsidian_note) {
+        notes = quest.notes;
+      } else if (quest.obsidian_note) {
+        // Legacy: single obsidian_note field
         let vault, path;
         if (quest.obsidian_note.includes(':')) {
           [vault, path] = quest.obsidian_note.split(':', 2);
@@ -1348,9 +1367,26 @@
           vault = '19Pine';
           path = quest.obsidian_note;
         }
-        return renderSingleObsidianLink({ vault, path });
+        notes = [{ vault, path }];
       }
-      return '';
+      
+      if (notes.length === 0) return '';
+      
+      let html = '<div class="notes-list">';
+      notes.forEach(note => {
+        const vault = note.vault || '19Pine';
+        const path = note.path;
+        const obsidianUrl = `obsidian://open?vault=${encodeURIComponent(vault)}&file=${encodeURIComponent(path)}`;
+        
+        html += `
+          <a href="${obsidianUrl}" class="note-link">
+            <span class="note-vault">[${vault}]</span>
+            <span class="note-path">${path}</span>
+          </a>
+        `;
+      });
+      html += '</div>';
+      return html;
     }
     
     // Legacy function for backwards compatibility
@@ -2049,7 +2085,7 @@
         }
         if (notesHtml) {
           sidebarHtml += `<div class="sidebar-section">
-            <div class="sidebar-section-title">${icon('book-open', 12)} Notes</div>
+            <div class="sidebar-section-title">${icon('book-open', 12)} Related Notes</div>
             ${notesHtml}
           </div>`;
         }
