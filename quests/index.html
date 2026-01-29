@@ -2331,13 +2331,17 @@
       const feed = document.getElementById('activity-feed');
       feed.innerHTML = '<div class="feed-empty">Loading...</div>';
       
-      // Fetch recent activity from all quests
-      const [{ data: prActivity }, { data: logs }] = await Promise.all([
+      // Fetch recent activity from all quests AND drafts
+      const [{ data: prActivity }, { data: logs }, { data: draftLogs }] = await Promise.all([
         db.from('quest_pr_activity')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(50),
         db.from('quest_logs')
+          .select('*')
+          .order('logged_at', { ascending: false })
+          .limit(50),
+        db.from('draft_logs')
           .select('*')
           .order('logged_at', { ascending: false })
           .limit(50)
@@ -2401,6 +2405,34 @@
         });
       }
       
+      // Process draft logs
+      if (draftLogs) {
+        draftLogs.forEach(l => {
+          const draft = DRAFTS.find(d => d.id === l.draft_id);
+          if (!draft) return;
+          
+          // Skip context updates without meaningful diff
+          if (l.entry === '📝 Context updated') return;
+          
+          let iconType = 'update';
+          let iconName = 'lightbulb';
+          const entry = l.entry?.toLowerCase() || '';
+          if (entry.includes('status') || entry.includes('→')) {
+            iconType = 'status';
+            iconName = 'activity';
+          }
+          
+          activities.push({
+            type: iconType,
+            icon: iconName,
+            draft: draft,
+            content: l.entry,
+            timestamp: l.logged_at,
+            isDraft: true
+          });
+        });
+      }
+      
       // Sort by timestamp descending
       activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       
@@ -2409,16 +2441,21 @@
         return;
       }
       
-      // Helper to get time group label
+      // Helper to get time group label (uses calendar dates, not raw 24h math)
       function getTimeGroup(timestamp) {
         const date = new Date(timestamp);
         const now = new Date();
-        const diffMs = now - date;
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         
-        if (diffHours < 2) return '2 hours ago';
-        if (diffHours < 4) return '4 hours ago';
+        // Get calendar dates (midnight local time)
+        const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const diffMs = today - dateDay;
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        
+        // Also track hours for "recent" grouping
+        const diffHours = Math.floor((now - date) / (1000 * 60 * 60));
+        
+        if (diffDays === 0 && diffHours < 2) return 'Just now';
         if (diffDays === 0) return 'Today';
         if (diffDays === 1) return 'Yesterday';
         if (diffDays < 7) return 'This Week';
@@ -2455,14 +2492,23 @@
         const inlineToggle = diffContent ? `<span class="feed-item-toggle" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">${icon('chevron-right', 10)} diff</span>` : '';
         const diffBlock = diffContent ? `<div class="feed-item-diff" id="${diffId}"><div class="diff-header">Changes</div>${diffContent}</div>` : '';
         
+        // Handle both quests and drafts
+        const itemTitle = a.isDraft ? a.draft.title : a.quest.title;
+        const itemId = a.isDraft ? a.draft.id : a.quest.id;
+        const clickHandler = a.isDraft 
+          ? `switchTab('drafts'); setTimeout(() => openDraftDetail('${itemId}'), 100)`
+          : `openQuest('${itemId}')`;
+        const labelClass = a.isDraft ? 'feed-item-quest draft-label' : 'feed-item-quest';
+        const labelPrefix = a.isDraft ? '💡 ' : '';
+        
         html += `
-          <div class="feed-item" onclick="openQuest('${a.quest.id}')">
+          <div class="feed-item" onclick="${clickHandler}">
             <div class="feed-item-icon ${a.type}">
               <i data-lucide="${a.icon}" style="width:16px;height:16px;"></i>
             </div>
             <div class="feed-item-body">
               <div class="feed-item-header">
-                <span class="feed-item-quest">${a.quest.title}</span>
+                <span class="${labelClass}">${labelPrefix}${itemTitle}</span>
                 <span class="feed-item-time">${timeAgoFull(a.timestamp)}</span>
               </div>
               <div class="feed-item-content">${mainContent}${inlineToggle}</div>
@@ -3331,13 +3377,17 @@
       const feed = document.getElementById('inline-activity-feed');
       feed.innerHTML = '<div class="feed-empty">Loading...</div>';
       
-      // Reuse the existing activity feed logic
-      const [{ data: prActivity }, { data: logs }] = await Promise.all([
+      // Reuse the existing activity feed logic (includes drafts)
+      const [{ data: prActivity }, { data: logs }, { data: draftLogs }] = await Promise.all([
         db.from('quest_pr_activity')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(50),
         db.from('quest_logs')
+          .select('*')
+          .order('logged_at', { ascending: false })
+          .limit(50),
+        db.from('draft_logs')
           .select('*')
           .order('logged_at', { ascending: false })
           .limit(50)
@@ -3398,6 +3448,32 @@
         });
       }
       
+      // Process draft logs
+      if (draftLogs) {
+        draftLogs.forEach(l => {
+          const draft = DRAFTS.find(d => d.id === l.draft_id);
+          if (!draft) return;
+          if (l.entry === '📝 Context updated') return;
+          
+          let iconType = 'update';
+          let iconName = 'lightbulb';
+          const entry = l.entry?.toLowerCase() || '';
+          if (entry.includes('status') || entry.includes('→')) {
+            iconType = 'status';
+            iconName = 'activity';
+          }
+          
+          activities.push({
+            type: iconType,
+            icon: iconName,
+            draft: draft,
+            content: l.entry,
+            timestamp: l.logged_at,
+            isDraft: true
+          });
+        });
+      }
+      
       activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       
       if (activities.length === 0) {
@@ -3408,12 +3484,17 @@
       function getTimeGroup(timestamp) {
         const date = new Date(timestamp);
         const now = new Date();
-        const diffMs = now - date;
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         
-        if (diffHours < 2) return '2 hours ago';
-        if (diffHours < 4) return '4 hours ago';
+        // Get calendar dates (midnight local time)
+        const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const diffMs = today - dateDay;
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        
+        // Also track hours for "recent" grouping
+        const diffHours = Math.floor((now - date) / (1000 * 60 * 60));
+        
+        if (diffDays === 0 && diffHours < 2) return 'Just now';
         if (diffDays === 0) return 'Today';
         if (diffDays === 1) return 'Yesterday';
         if (diffDays < 7) return 'This Week';
@@ -3450,14 +3531,22 @@
         const inlineToggle = diffContent ? `<span class="feed-item-toggle" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">${icon('chevron-right', 10)} diff</span>` : '';
         const diffBlock = diffContent ? `<div class="feed-item-diff" id="${diffId}"><div class="diff-header">Changes</div>${diffContent}</div>` : '';
         
+        // Handle both quests and drafts
+        const itemTitle = a.isDraft ? a.draft.title : a.quest.title;
+        const itemId = a.isDraft ? a.draft.id : a.quest.id;
+        const clickHandler = a.isDraft 
+          ? `switchTab('drafts'); setTimeout(() => openDraftDetail('${itemId}'), 100)`
+          : `switchTab('quests'); setTimeout(() => openQuest('${itemId}'), 100)`;
+        const labelPrefix = a.isDraft ? '💡 ' : '';
+        
         html += `
-          <div class="feed-item" onclick="switchTab('quests'); setTimeout(() => openQuest('${a.quest.id}'), 100)">
+          <div class="feed-item" onclick="${clickHandler}">
             <div class="feed-item-icon ${a.type}">
               <i data-lucide="${a.icon}" style="width:16px;height:16px;"></i>
             </div>
             <div class="feed-item-body">
               <div class="feed-item-header">
-                <span class="feed-item-quest">${a.quest.title}</span>
+                <span class="feed-item-quest">${labelPrefix}${itemTitle}</span>
                 <span class="feed-item-time">${timeAgoFull(a.timestamp)}</span>
               </div>
               <div class="feed-item-content">${mainContent}${inlineToggle}</div>
