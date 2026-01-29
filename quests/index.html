@@ -622,26 +622,39 @@
     .detail-title {
       font-size: 18px;
       font-weight: 600;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 4px;
+      margin-bottom: 10px;
+      line-height: 1.3;
     }
-    .detail-status {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
+    .detail-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
       margin-bottom: 16px;
     }
-    .detail-status.investigating { background: #8b5cf622; color: #8b5cf6; }
-    .detail-status.ready { background: #22c55e22; color: #22c55e; }
-    .detail-status.active { background: #3b82f622; color: #3b82f6; }
-    .detail-status.blocked { background: #eab30822; color: #eab308; }
-    .detail-status.done { background: #10b98122; color: #10b981; }
-    .detail-status.abandoned { background: #ef444422; color: #ef4444; }
-    .detail-status.archived { background: #6b728022; color: #6b7280; }
+    .detail-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .detail-badge.topic {
+      background: var(--secondary-bg);
+      color: var(--text);
+    }
+    .detail-badge.collaborator {
+      background: var(--secondary-bg);
+      color: var(--text);
+    }
+    .detail-badge.investigating { background: #8b5cf622; color: #8b5cf6; }
+    .detail-badge.ready { background: #22c55e22; color: #22c55e; }
+    .detail-badge.active { background: #3b82f622; color: #3b82f6; }
+    .detail-badge.blocked { background: #eab30822; color: #eab308; }
+    .detail-badge.done { background: #10b98122; color: #10b981; }
+    .detail-badge.abandoned { background: #ef444422; color: #ef4444; }
+    .detail-badge.archived { background: #6b728022; color: #6b7280; }
     
     /* Full-page drop overlay */
     .drop-overlay {
@@ -2204,12 +2217,12 @@
       }
       
       document.getElementById("detail-content").innerHTML = `
-        <div class="detail-title">
-          <span class="quest-topic" style="margin-right: 8px;">${icon(topicCfg.icon, 16)} ${topicCfg.label}</span>
-          ${quest.title}
+        <div class="detail-title">${quest.title}</div>
+        <div class="detail-badges">
+          <span class="detail-badge topic">${icon(topicCfg.icon, 12)} ${topicCfg.label}</span>
+          <span class="detail-badge ${quest.status}">${icon(cfg.icon, 12, cfg.color)} ${cfg.label}</span>
+          ${quest.collaborator ? `<span class="detail-badge collaborator">${icon('users', 12)} ${quest.collaborator}</span>` : ""}
         </div>
-        <span class="detail-status ${quest.status}">${icon(cfg.icon, 14, cfg.color)} ${cfg.label}</span>
-        ${quest.collaborator ? `<span class="detail-status" style="margin-left: 8px; background: var(--secondary-bg); color: var(--text);">${icon('users', 12)} ${quest.collaborator}</span>` : ""}
         
         <div class="detail-layout">
           <div class="detail-main">
