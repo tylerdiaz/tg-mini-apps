@@ -1523,6 +1523,13 @@
         return;
       }
       
+      // Add log entry for the upload
+      await db.from('quest_logs').insert({
+        quest_id: currentQuest.id,
+        entry: `📎 Attached: ${file.name}`,
+        logged_at: new Date().toISOString()
+      });
+      
       showToast(`✓ Uploaded ${file.name}`);
       
       // Reload quest data and re-render detail view
