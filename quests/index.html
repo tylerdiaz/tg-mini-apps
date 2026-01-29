@@ -1291,7 +1291,9 @@
           pr_additions: quest.pr_additions,
           pr_deletions: quest.pr_deletions,
           pr_created_at: quest.pr_created_at,
-          pr_merged_at: quest.pr_merged_at
+          pr_merged_at: quest.pr_merged_at,
+          mergeable: quest.pr_mergeable,
+          merge_state: quest.pr_merge_state
         });
       }
       return '';
