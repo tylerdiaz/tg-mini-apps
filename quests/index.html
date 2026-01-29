@@ -4905,11 +4905,6 @@
                   <div class="next-move-number">${i + 1}</div>
                   <div class="next-move-content">
                     <div class="next-move-text">${m.text}</div>
-                    ${m.details && m.details.length > 0 ? `
-                      <div class="next-move-details">
-                        ${m.details.map(d => `<div class="next-move-detail">• ${d}</div>`).join('')}
-                      </div>
-                    ` : ''}
                   </div>
                 </div>
               `).join('')}
