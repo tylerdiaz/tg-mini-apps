@@ -76,6 +76,10 @@
       gap: 6px;
     }
     .header-btn:active { opacity: 0.8; }
+    .header-btn.active {
+      background: rgba(51, 144, 236, 0.15);
+      color: var(--link);
+    }
     .header-btn svg {
       width: 14px;
       height: 14px;
@@ -754,6 +758,79 @@
       color: var(--text);
       opacity: 0.9;
     }
+    /* Activity Feed View */
+    .activity-view {
+      padding: 12px;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+    .activity-header {
+      margin-bottom: 16px;
+    }
+    .activity-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 12px 0;
+    }
+    .activity-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .feed-item {
+      background: var(--secondary-bg);
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+    }
+    .feed-item:active { opacity: 0.8; }
+    .feed-item-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .feed-item-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .feed-item-icon.merge { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .feed-item-icon.comment { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .feed-item-icon.commit { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .feed-item-icon.update { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .feed-item-icon.status { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+    .feed-item-quest {
+      font-size: 12px;
+      color: var(--hint);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .feed-item-time {
+      font-size: 11px;
+      color: var(--hint);
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .feed-item-content {
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+    .feed-item-content a {
+      color: var(--link);
+    }
+    .feed-empty {
+      text-align: center;
+      color: var(--hint);
+      padding: 40px 20px;
+    }
+    
     /* GitHub-style activity timeline */
     .activity-timeline {
       margin-top: 8px;
@@ -1171,6 +1248,10 @@
   <div id="list-view">
     <div class="header">
       <input type="text" class="search" id="search" placeholder="Search quests...">
+      <button class="header-btn" id="activity-btn" onclick="toggleActivityFeed()">
+        <i data-lucide="activity" style="width:14px;height:14px;"></i>
+        <span>Feed</span>
+      </button>
       <button class="header-btn" id="sort-btn">
         <svg viewBox="0 0 16 16"><path d="M3 4.5a.5.5 0 01.5-.5h9a.5.5 0 010 1h-9a.5.5 0 01-.5-.5zm2 3a.5.5 0 01.5-.5h5a.5.5 0 010 1h-5a.5.5 0 01-.5-.5zm2 3a.5.5 0 01.5-.5h1a.5.5 0 010 1h-1a.5.5 0 01-.5-.5z"/></svg>
         <span id="sort-label">Updated</span>
@@ -1186,6 +1267,14 @@
 
     <div class="results-count" id="results-count"></div>
     <div class="quests-list" id="quests-container"></div>
+  </div>
+  
+  <div id="activity-view" class="activity-view" style="display:none;">
+    <div class="activity-header">
+      <button class="back-btn" onclick="hideActivityFeed()" style="display:block;">← Back</button>
+      <h2>Recent Activity</h2>
+    </div>
+    <div id="activity-feed" class="activity-feed"></div>
   </div>
   
   <div class="detail-view" id="detail-view">
@@ -1411,6 +1500,134 @@
       if (!isTelegram && !currentQuest) {
         restoreFromUrl();
       }
+    }
+    
+    // Activity Feed
+    let activityFeedVisible = false;
+    
+    function toggleActivityFeed() {
+      if (activityFeedVisible) {
+        hideActivityFeed();
+      } else {
+        showActivityFeed();
+      }
+    }
+    
+    function showActivityFeed() {
+      activityFeedVisible = true;
+      document.getElementById('list-view').style.display = 'none';
+      document.getElementById('activity-view').style.display = 'block';
+      document.getElementById('activity-btn').classList.add('active');
+      renderActivityFeed();
+    }
+    
+    function hideActivityFeed() {
+      activityFeedVisible = false;
+      document.getElementById('activity-view').style.display = 'none';
+      document.getElementById('list-view').style.display = 'block';
+      document.getElementById('activity-btn').classList.remove('active');
+    }
+    
+    async function renderActivityFeed() {
+      const feed = document.getElementById('activity-feed');
+      feed.innerHTML = '<div class="feed-empty">Loading...</div>';
+      
+      // Fetch recent activity from all quests
+      const [{ data: prActivity }, { data: logs }] = await Promise.all([
+        db.from('quest_pr_activity')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50),
+        db.from('quest_logs')
+          .select('*')
+          .order('logged_at', { ascending: false })
+          .limit(50)
+      ]);
+      
+      // Combine and sort by timestamp
+      const activities = [];
+      
+      if (prActivity) {
+        prActivity.forEach(a => {
+          const quest = QUESTS.find(q => q.id === a.quest_id);
+          if (!quest) return;
+          
+          let iconType = 'update';
+          let iconName = 'git-pull-request';
+          if (a.event_type === 'PullRequestEvent' && a.action === 'closed' && a.merged) {
+            iconType = 'merge';
+            iconName = 'git-merge';
+          } else if (a.event_type === 'IssueCommentEvent' || a.event_type === 'PullRequestReviewCommentEvent') {
+            iconType = 'comment';
+            iconName = 'message-circle';
+          } else if (a.event_type === 'PushEvent') {
+            iconType = 'commit';
+            iconName = 'git-commit';
+          }
+          
+          activities.push({
+            type: iconType,
+            icon: iconName,
+            quest: quest,
+            content: a.title || a.body?.slice(0, 100) || `${a.event_type}: ${a.action || ''}`,
+            url: a.html_url,
+            timestamp: a.created_at
+          });
+        });
+      }
+      
+      if (logs) {
+        logs.forEach(l => {
+          const quest = QUESTS.find(q => q.id === l.quest_id);
+          if (!quest) return;
+          
+          // Skip auto-generated context updates
+          if (l.entry === '📝 Context updated') return;
+          
+          let iconType = 'update';
+          let iconName = 'edit-3';
+          const entry = l.entry?.toLowerCase() || '';
+          if (entry.includes('status') || entry.includes('→')) {
+            iconType = 'status';
+            iconName = 'activity';
+          }
+          
+          activities.push({
+            type: iconType,
+            icon: iconName,
+            quest: quest,
+            content: l.entry,
+            timestamp: l.logged_at
+          });
+        });
+      }
+      
+      // Sort by timestamp descending
+      activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      
+      if (activities.length === 0) {
+        feed.innerHTML = '<div class="feed-empty">No recent activity</div>';
+        return;
+      }
+      
+      let html = '';
+      activities.slice(0, 30).forEach(a => {
+        html += `
+          <div class="feed-item" onclick="openQuest('${a.quest.id}')">
+            <div class="feed-item-header">
+              <div class="feed-item-icon ${a.type}">
+                <i data-lucide="${a.icon}" style="width:14px;height:14px;"></i>
+              </div>
+              <span class="feed-item-quest">${a.quest.title}</span>
+              <span class="feed-item-time">${timeAgoFull(a.timestamp)}</span>
+            </div>
+            <div class="feed-item-content">${a.content || ''}</div>
+          </div>
+        `;
+      });
+      
+      feed.innerHTML = html;
+      lucide.createIcons();
     }
 
     function subscribeToChanges() {
