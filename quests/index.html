@@ -3842,7 +3842,8 @@
     };
     
     // Render GitHub-flavored markdown to HTML
-    function renderGitHubMarkdown(text) {
+    // Optional repoHint: default repo for #123 references (e.g. "RunVid/webapp")
+    function renderGitHubMarkdown(text, repoHint = null) {
       if (!text) return '';
       
       // Escape HTML first
@@ -3873,8 +3874,12 @@
       // @mentions
       html = html.replace(/@(\w+)/g, '<strong style="color:var(--link);">@$1</strong>');
       
-      // #references (PR/issue numbers)
-      html = html.replace(/#(\d+)/g, '<strong style="color:var(--link);">#$1</strong>');
+      // #references (PR/issue numbers) - make clickable if we have a repo
+      if (repoHint) {
+        html = html.replace(/#(\d+)/g, `<a href="https://github.com/${repoHint}/pull/$1" target="_blank" style="color:var(--link);">#$1</a>`);
+      } else {
+        html = html.replace(/#(\d+)/g, '<strong style="color:var(--link);">#$1</strong>');
+      }
       
       // Bullet lists (- or *)
       html = html.replace(/^[\-\*]\s+(.+)$/gm, '<li style="margin-left:16px;list-style:disc;">$1</li>');
@@ -4301,9 +4306,9 @@
     }
     
     // Parse log entry and detect activity type
-    function parseActivity(entry, timestamp) {
+    function parseActivity(entry, timestamp, repoHint = null) {
       // Render markdown for log entries
-      const renderedEntry = renderGitHubMarkdown(entry);
+      const renderedEntry = renderGitHubMarkdown(entry, repoHint);
       
       const result = {
         type: 'default',
@@ -4384,7 +4389,7 @@
       return result;
     }
     
-    function renderActivityLog(logs, prActivity = []) {
+    function renderActivityLog(logs, prActivity = [], repoHint = null) {
       // Dedupe and process logs
       const seenEntries = new Set();
       const activities = [];
@@ -4452,7 +4457,7 @@
           
           // Render GitHub markdown
           let body = item.entry || '';
-          body = renderGitHubMarkdown(body);
+          body = renderGitHubMarkdown(body, repoHint);
           
           const prLink = item.github_url ? 
             `<a href="${item.github_url}" target="_blank" style="color:var(--link);text-decoration:none;">#${item.pr_number}</a>` : 
@@ -4486,7 +4491,7 @@
           
           // Special handling for Navigator's "🎯 Next moves" entries
           if (mainContent.includes('🎯 Next moves')) {
-            const body = renderGitHubMarkdown(mainContent);
+            const body = renderGitHubMarkdown(mainContent, repoHint);
             html += `
               <div class="activity-item">
                 <img src="navigator-avatar.jpg" alt="Ecru" class="activity-avatar" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -4524,7 +4529,7 @@
               }
             }
             
-            const activity = parseActivity(mainContent, item.time);
+            const activity = parseActivity(mainContent, item.time, repoHint);
             html += `
               <div class="activity-item">
                 <div class="activity-icon ${activity.type}">
@@ -4892,7 +4897,9 @@
       const cfg = statusConfig[quest.status] || statusConfig.active;
 
       // Render GitHub-style activity log (merged with PR activity)
-      const logHtml = renderActivityLog(quest.log, quest.pr_activity);
+      // Use quest's repo for PR link hints
+      const questRepo = quest.pr_repo || quest.prs?.[0]?.pr_repo || null;
+      const logHtml = renderActivityLog(quest.log, quest.pr_activity, questRepo);
 
       let assetsHtml = "";
       if (quest.assets && quest.assets.length > 0) {
