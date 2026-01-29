@@ -353,6 +353,42 @@
       padding-top: 16px;
       border-top: 1px solid var(--secondary-bg);
     }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--text);
+      color: var(--bg);
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 300;
+      opacity: 0;
+      transition: all 0.3s ease-out;
+      max-width: 90%;
+      text-align: center;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    
+    /* Browser mode indicator */
+    .mode-badge {
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      background: rgba(139, 92, 246, 0.2);
+      color: #8b5cf6;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      z-index: 50;
+    }
     .action-btn {
       flex: 1;
       padding: 12px;
@@ -462,6 +498,8 @@
   </style>
 </head>
 <body>
+  <div class="toast" id="toast"></div>
+  <div class="mode-badge" id="mode-badge"></div>
   <div id="list-view">
     <div class="header">
       <input type="text" class="search" id="search" placeholder="Search quests...">
@@ -523,10 +561,22 @@
 
   <script>
     const tg = window.Telegram?.WebApp;
-    if (tg) {
+    const isTelegram = tg && tg.initData;
+    
+    if (isTelegram) {
       tg.ready();
       tg.expand();
       document.body.classList.add('tg-webapp');
+      document.getElementById('mode-badge').textContent = '📱 Telegram';
+    } else {
+      document.getElementById('mode-badge').textContent = '🖥️ Browser';
+    }
+    
+    function showToast(msg, duration = 2500) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
     }
 
     // Supabase config
@@ -1002,21 +1052,39 @@
     }
     
     function addLogEntry() {
-      if (!currentQuest || !tg) return;
-      tg.sendData(JSON.stringify({
+      if (!currentQuest) return;
+      const payload = {
         action: 'add_log',
         quest_id: currentQuest.id,
         topic: currentQuest.topic
-      }));
+      };
+      if (isTelegram) {
+        tg.sendData(JSON.stringify(payload));
+      } else {
+        showToast(`📝 Would send: add_log → ${currentQuest.id}`);
+        console.log('[Browser Mode] sendData:', payload);
+      }
     }
     
     function markDone() {
-      if (!currentQuest || !tg) return;
-      tg.sendData(JSON.stringify({
+      if (!currentQuest) return;
+      const payload = {
         action: 'mark_done',
         quest_id: currentQuest.id,
         topic: currentQuest.topic
-      }));
+      };
+      if (isTelegram) {
+        tg.sendData(JSON.stringify(payload));
+      } else {
+        // In browser mode, actually update via Supabase for testing
+        db.from('quests')
+          .update({ status: 'done', updated_at: new Date().toISOString() })
+          .eq('id', currentQuest.id)
+          .then(() => {
+            showToast(`✅ Marked "${currentQuest.title}" done!`);
+            closeDetail();
+          });
+      }
     }
 
     // Event listeners
@@ -1027,7 +1095,24 @@
 
     document.getElementById("sort-btn").addEventListener("click", openSortSheet);
 
-    if (tg) tg.BackButton.onClick(closeDetail);
+    if (isTelegram) {
+      tg.BackButton.onClick(closeDetail);
+    }
+    
+    // Keyboard shortcuts (browser mode)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (document.getElementById('lightbox').classList.contains('open')) {
+          closeLightbox();
+        } else if (document.getElementById('detail-view').classList.contains('open')) {
+          closeDetail();
+        } else if (document.getElementById('filter-sheet').classList.contains('open')) {
+          closeSheet();
+        } else if (document.getElementById('sort-sheet').classList.contains('open')) {
+          closeSortSheet();
+        }
+      }
+    });
 
     // Initial load from Supabase + real-time subscription
     loadQuests();
