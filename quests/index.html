@@ -239,6 +239,71 @@
       margin-top: 8px;
     }
     .quest-pr-link:hover { opacity: 0.8; }
+    
+    /* PR Badge in card */
+    .pr-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .pr-badge.pr-open { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .pr-badge.pr-merged { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .pr-badge.pr-closed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    
+    /* PR Card in detail */
+    .pr-card {
+      background: var(--secondary-bg);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      border-left: 3px solid var(--link);
+    }
+    .pr-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .pr-card-number {
+      font-weight: 600;
+      color: var(--link);
+    }
+    .pr-card-state {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .pr-card-state.open { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .pr-card-state.merged { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .pr-card-state.closed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .pr-card-title {
+      font-size: 14px;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .pr-card-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--hint);
+    }
+    .pr-card-stat { display: flex; align-items: center; gap: 4px; }
+    .pr-card-stat.additions { color: #22c55e; }
+    .pr-card-stat.deletions { color: #ef4444; }
+    .pr-card:hover { 
+      background: rgba(255,255,255,0.05);
+      cursor: pointer;
+    }
+    .pr-card-time {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--hint);
+    }
 
     /* Results count */
     .results-count {
@@ -733,7 +798,16 @@
         created: q.created_at?.split('T')[0],
         updated: q.updated_at?.split('T')[0],
         log: questLogs[q.id] || [],
-        assets: questAssets[q.id] || []
+        assets: questAssets[q.id] || [],
+        pr_url: q.pr_url,
+        pr_number: q.pr_number,
+        pr_title: q.pr_title,
+        pr_state: q.pr_state,
+        pr_additions: q.pr_additions,
+        pr_deletions: q.pr_deletions,
+        pr_repo: q.pr_repo,
+        pr_created_at: q.pr_created_at,
+        pr_merged_at: q.pr_merged_at
       }));
       
       renderFilterBar();
@@ -762,6 +836,51 @@
     
     function icon(name, size = 16, color = 'currentColor') {
       return `<i data-lucide="${name}" style="width:${size}px;height:${size}px;color:${color};display:inline-block;vertical-align:middle;"></i>`;
+    }
+    
+    const prStateConfig = {
+      OPEN: { icon: 'git-pull-request', color: '#22c55e', label: 'Open' },
+      MERGED: { icon: 'git-merge', color: '#8b5cf6', label: 'Merged' },
+      CLOSED: { icon: 'git-pull-request-closed', color: '#ef4444', label: 'Closed' }
+    };
+    
+    function getPrBadge(quest) {
+      if (!quest.pr_number) return '';
+      const cfg = prStateConfig[quest.pr_state] || prStateConfig.OPEN;
+      return `<span class="pr-badge pr-${quest.pr_state?.toLowerCase()}">${icon(cfg.icon, 12, cfg.color)} #${quest.pr_number}</span>`;
+    }
+    
+    function renderPrCard(quest) {
+      if (!quest.pr_number) return '';
+      const cfg = prStateConfig[quest.pr_state] || prStateConfig.OPEN;
+      const stateClass = quest.pr_state?.toLowerCase() || 'open';
+      
+      // Format timestamp
+      let timestamp = '';
+      if (quest.pr_merged_at) {
+        timestamp = `Merged ${timeAgo(quest.pr_merged_at.split('T')[0])}`;
+      } else if (quest.pr_created_at) {
+        timestamp = `Opened ${timeAgo(quest.pr_created_at.split('T')[0])}`;
+      }
+      
+      const url = quest.pr_url || `https://github.com/${quest.pr_repo}/pull/${quest.pr_number}`;
+      
+      return `
+        <a href="${url}" target="_blank" class="pr-card" style="text-decoration:none;color:inherit;display:block;">
+          <div class="pr-card-header">
+            ${icon('git-pull-request', 18, cfg.color)}
+            <span class="pr-card-number">#${quest.pr_number}</span>
+            <span class="pr-card-state ${stateClass}">${cfg.label}</span>
+            ${timestamp ? `<span class="pr-card-time">${timestamp}</span>` : ''}
+          </div>
+          <div class="pr-card-title">${quest.pr_title || 'Untitled PR'}</div>
+          <div class="pr-card-stats">
+            <span class="pr-card-stat additions">${icon('plus', 12)} ${quest.pr_additions || 0}</span>
+            <span class="pr-card-stat deletions">${icon('minus', 12)} ${quest.pr_deletions || 0}</span>
+            ${quest.pr_repo ? `<span class="pr-card-stat">${icon('folder-git-2', 12)} ${quest.pr_repo}</span>` : ''}
+          </div>
+        </a>
+      `;
     }
     
     const topicConfig = {
@@ -1103,6 +1222,7 @@
       filtered.forEach(q => {
         const cfg = statusConfig[q.status] || statusConfig.active;
         const topicCfg = topicConfig[q.topic] || { icon: 'folder', label: q.topic };
+        const prBadge = q.pr_number ? getPrBadge(q) : '';
         html += `<div class="quest-card" onclick="openQuest('${q.id}')">
           <span class="quest-status-icon">${icon(cfg.icon, 18, cfg.color)}</span>
           <div class="quest-content">
@@ -1112,6 +1232,7 @@
             <div class="quest-meta">
               <span class="quest-topic">${icon(topicCfg.icon, 12)} ${topicCfg.label}</span>
               ${q.collaborator ? `<span>${icon('users', 12)} ${q.collaborator}</span>` : ''}
+              ${prBadge}
               <span class="quest-time">${timeAgo(q.updated)}</span>
             </div>
           </div>
@@ -1218,8 +1339,9 @@
         <div class="quest-summary">
           <div class="quest-summary-label">Summary</div>
           ${summary}
-          ${prLink ? `<a href="${prLink}" target="_blank" class="quest-pr-link">${icon('git-pull-request', 14)} View PR</a>` : ''}
         </div>
+        
+        ${quest.pr_number ? renderPrCard(quest) : ''}
         
         ${assetsHtml}
         
