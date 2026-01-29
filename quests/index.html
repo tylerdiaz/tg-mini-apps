@@ -1209,6 +1209,51 @@
       white-space: nowrap;
       width: 100%;
     }
+    .asset-actions {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 150ms ease;
+    }
+    .asset-item:hover .asset-actions {
+      opacity: 1;
+    }
+    .asset-action-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .asset-action-btn:hover {
+      background: rgba(0,0,0,0.9);
+    }
+    .asset-filename {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 4px 6px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      color: white;
+      font-size: 9px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 150ms ease;
+    }
+    .asset-item:hover .asset-filename {
+      opacity: 1;
+    }
     
     /* Lightbox */
     .lightbox {
@@ -2802,14 +2847,25 @@
           const fileType = getFileType(asset.mime_type, filename);
           
           if (isImage) {
-            assetsHtml += `<div class="asset-item" onclick="openLightbox('${assetUrl}')">
-              <img src="${assetUrl}" alt="${filename}" loading="lazy">
+            assetsHtml += `<div class="asset-item">
+              <img src="${assetUrl}" alt="${filename}" loading="lazy" onclick="openLightbox('${assetUrl}')">
+              <div class="asset-actions">
+                <button class="asset-action-btn" onclick="event.stopPropagation(); downloadAsset('${assetUrl}', '${filename}')" title="Download">
+                  ${icon('download', 14)}
+                </button>
+              </div>
+              <span class="asset-filename">${filename}</span>
             </div>`;
           } else {
             assetsHtml += `<div class="asset-item" onclick="window.open('${assetUrl}', '_blank')">
               <div class="file-icon">
                 <span class="icon">${icon(fileIcons[fileType] || 'paperclip', 24)}</span>
                 <span class="name">${filename}</span>
+              </div>
+              <div class="asset-actions">
+                <button class="asset-action-btn" onclick="event.stopPropagation(); downloadAsset('${assetUrl}', '${filename}')" title="Download">
+                  ${icon('download', 14)}
+                </button>
               </div>
             </div>`;
           }
@@ -3077,6 +3133,26 @@
     
     function closeLightbox() {
       document.getElementById("lightbox").classList.remove("open");
+    }
+    
+    async function downloadAsset(url, filename) {
+      try {
+        showToast(`Downloading ${filename}...`);
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        showToast(`✓ Downloaded ${filename}`);
+      } catch (err) {
+        console.error('Download error:', err);
+        showToast(`❌ Download failed`);
+      }
     }
     
     function addLogEntry() {
