@@ -419,6 +419,86 @@
       color: var(--text);
       opacity: 0.9;
     }
+    /* GitHub-style activity timeline */
+    .activity-timeline {
+      margin-top: 8px;
+    }
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+    .activity-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--secondary-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .activity-icon.commit { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .activity-icon.push { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .activity-icon.comment { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .activity-icon.review { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .activity-icon.status { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+    .activity-icon.attach { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+    .activity-icon.merge { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .activity-icon.default { background: var(--secondary-bg); color: var(--hint); }
+    .activity-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .activity-main {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .activity-main a {
+      color: var(--link);
+      text-decoration: none;
+    }
+    .activity-main a:hover {
+      text-decoration: underline;
+    }
+    .activity-main code {
+      background: rgba(255,255,255,0.1);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: 'SF Mono', Monaco, monospace;
+      color: var(--link);
+    }
+    .activity-main code a {
+      color: inherit;
+    }
+    .activity-meta {
+      font-size: 11px;
+      color: var(--hint);
+      margin-top: 2px;
+    }
+    .activity-branch {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--link);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    .activity-sha {
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+    }
+    /* Legacy log styles (fallback) */
     .log-timeline {
       border-left: 2px solid var(--secondary-bg);
       margin-left: 8px;
@@ -1069,6 +1149,161 @@
       if (diffDays < 30) return `${Math.floor(diffDays / 7)}w`;
       return `${Math.floor(diffDays / 30)}mo`;
     }
+    
+    function timeAgoFull(dateStr) {
+      if (!dateStr) return '';
+      const date = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'T12:00:00');
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+      
+      if (diffMins < 1) return 'just now';
+      if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+      if (diffDays === 1) return 'yesterday';
+      if (diffDays < 7) return `${diffDays} days ago`;
+      if (diffDays < 14) return '1 week ago';
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+      if (diffDays < 60) return '1 month ago';
+      return `${Math.floor(diffDays / 30)} months ago`;
+    }
+    
+    // Parse log entry and detect activity type
+    function parseActivity(entry, timestamp) {
+      const result = {
+        type: 'default',
+        icon: 'message-circle',
+        html: entry,
+        meta: timestamp ? timeAgoFull(timestamp) : ''
+      };
+      
+      const lowerEntry = entry.toLowerCase();
+      
+      // Detect PR comments with links
+      const prCommentMatch = entry.match(/comment(?:ed)?(?:\s+on)?.*?(?:PR|pull request)?\s*#?(\d+)|review(?:ed)?.*?#?(\d+)/i);
+      const commentLinkMatch = entry.match(/(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/(\d+)(?:#[^\s)]+)?)/);
+      
+      if (prCommentMatch || commentLinkMatch || lowerEntry.includes('comment') || lowerEntry.includes('review')) {
+        result.type = lowerEntry.includes('review') ? 'review' : 'comment';
+        result.icon = lowerEntry.includes('review') ? 'message-square' : 'message-circle';
+        
+        if (commentLinkMatch) {
+          const [fullUrl, , prNum] = commentLinkMatch;
+          result.html = entry.replace(fullUrl, `<a href="${fullUrl}" target="_blank">#${prNum}</a>`);
+        }
+      }
+      // Detect commits
+      else if (lowerEntry.includes('commit') || entry.match(/[a-f0-9]{7,40}/)) {
+        result.type = 'commit';
+        result.icon = 'git-commit';
+        
+        // Link commit SHAs
+        const shaMatch = entry.match(/\b([a-f0-9]{7,40})\b/g);
+        if (shaMatch) {
+          let html = entry;
+          shaMatch.forEach(sha => {
+            // Try to extract repo from entry or use default
+            const repoMatch = entry.match(/(?:github\.com\/)?([^/\s]+\/[^/\s]+)/) || ['', '19pine/webapp'];
+            const repo = repoMatch[1] || '19pine/webapp';
+            const shortSha = sha.slice(0, 7);
+            html = html.replace(sha, `<code><a href="https://github.com/${repo}/commit/${sha}" target="_blank">${shortSha}</a></code>`);
+          });
+          result.html = html;
+        }
+      }
+      // Detect pushes / force-pushes
+      else if (lowerEntry.includes('push') || lowerEntry.includes('force-push')) {
+        result.type = 'push';
+        result.icon = lowerEntry.includes('force') ? 'git-branch' : 'upload';
+        
+        // Link branch names
+        const branchMatch = entry.match(/(?:branch|to)\s+[`"]?([a-zA-Z0-9/_-]+)[`"]?/);
+        if (branchMatch) {
+          const branch = branchMatch[1];
+          result.html = entry.replace(branch, `<span class="activity-branch">${icon('git-branch', 12)} ${branch}</span>`);
+        }
+      }
+      // Detect merges
+      else if (lowerEntry.includes('merge')) {
+        result.type = 'merge';
+        result.icon = 'git-merge';
+      }
+      // Detect status changes
+      else if (lowerEntry.includes('status') || lowerEntry.includes('→') || lowerEntry.includes('moved to') || 
+               lowerEntry.match(/marked?\s+(as\s+)?(done|complete|blocked|active|ready)/i)) {
+        result.type = 'status';
+        result.icon = 'activity';
+      }
+      // Detect attachments
+      else if (lowerEntry.includes('attach') || lowerEntry.includes('📎') || lowerEntry.includes('upload')) {
+        result.type = 'attach';
+        result.icon = 'paperclip';
+      }
+      
+      // Link any remaining GitHub URLs
+      result.html = result.html.replace(
+        /(https:\/\/github\.com\/[^\s<)]+)/g,
+        '<a href="$1" target="_blank">$1</a>'
+      );
+      
+      return result;
+    }
+    
+    function renderActivityLog(logs) {
+      if (!logs || logs.length === 0) {
+        return '<p class="context-text" style="opacity:0.5">No activity yet</p>';
+      }
+      
+      // Dedupe and process logs
+      const seenEntries = new Set();
+      const activities = [];
+      
+      logs.forEach(item => {
+        if (item.entries) {
+          // Old format
+          item.entries.forEach(e => {
+            const key = e.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+            if (!seenEntries.has(key)) {
+              seenEntries.add(key);
+              activities.push({ entry: e, time: item.date });
+            }
+          });
+        } else if (item.entry) {
+          // New Supabase format
+          const key = item.entry.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+          if (!seenEntries.has(key)) {
+            seenEntries.add(key);
+            activities.push({ entry: item.entry, time: item.logged_at });
+          }
+        }
+      });
+      
+      if (activities.length === 0) {
+        return '<p class="context-text" style="opacity:0.5">No activity yet</p>';
+      }
+      
+      let html = '<div class="activity-timeline">';
+      
+      activities.forEach(({ entry, time }) => {
+        const activity = parseActivity(entry, time);
+        html += `
+          <div class="activity-item">
+            <div class="activity-icon ${activity.type}">
+              ${icon(activity.icon, 16)}
+            </div>
+            <div class="activity-body">
+              <div class="activity-main">${activity.html}</div>
+              ${activity.meta ? `<div class="activity-meta">${activity.meta}</div>` : ''}
+            </div>
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+      return html;
+    }
 
     function isWithinHours(dateStr, hours) {
       if (!hours || hours === 0) return true;
@@ -1371,57 +1606,8 @@
       currentQuest = quest;
       const cfg = statusConfig[quest.status] || statusConfig.active;
 
-      let logHtml = "";
-      // Group logs by date and dedupe
-      const logsByDate = {};
-      const seenEntries = new Set();
-      
-      quest.log.forEach(item => {
-        let dateKey = 'Unknown';
-        let time = '';
-        let entry = '';
-        
-        if (item.entries) {
-          // Old format
-          dateKey = item.date || 'Unknown';
-          item.entries.forEach(e => {
-            const key = e.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
-            if (!seenEntries.has(key)) {
-              seenEntries.add(key);
-              if (!logsByDate[dateKey]) logsByDate[dateKey] = [];
-              logsByDate[dateKey].push({ entry: e, time: '' });
-            }
-          });
-        } else if (item.entry) {
-          // New Supabase format
-          if (item.logged_at) {
-            const d = new Date(item.logged_at);
-            dateKey = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          }
-          // Dedupe by normalized entry content
-          const key = item.entry.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
-          if (!seenEntries.has(key)) {
-            seenEntries.add(key);
-            if (!logsByDate[dateKey]) logsByDate[dateKey] = [];
-            logsByDate[dateKey].push({ entry: item.entry, time });
-          }
-        }
-      });
-      
-      // Render timeline
-      if (Object.keys(logsByDate).length > 0) {
-        logHtml = '<div class="log-timeline">';
-        Object.entries(logsByDate).forEach(([date, entries]) => {
-          logHtml += `<div class="log-date-group">${date}</div>`;
-          entries.forEach(({ entry, time }) => {
-            logHtml += `<div class="log-entry">
-              <div class="log-content">${entry}${time ? `<span class="log-time">${time}</span>` : ''}</div>
-            </div>`;
-          });
-        });
-        logHtml += '</div>';
-      }
+      // Render GitHub-style activity log
+      const logHtml = renderActivityLog(quest.log);
 
       let assetsHtml = "";
       if (quest.assets && quest.assets.length > 0) {
@@ -1475,8 +1661,8 @@
         
         ${assetsHtml}
         
-        <div class="section-header">Log</div>
-        ${logHtml || '<p class="context-text" style="opacity:0.5">No log entries yet</p>'}
+        <div class="section-header">Activity</div>
+        ${logHtml}
         
         <div class="action-bar">
           <button class="action-btn secondary" onclick="archiveQuest()">${icon('archive', 16)} Archive</button>
