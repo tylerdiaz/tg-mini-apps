@@ -316,15 +316,15 @@
     .cm-s-hypermd-light .cm-formatting {
       color: var(--hint) !important;
     }
-    /* Hide ALL formatting characters when not editing */
-    .cm-s-hypermd-light .hmd-hidden-token,
+    /* Hide formatting characters when not on active line */
     .cm-s-hypermd-light .cm-formatting:not(.cm-formatting-list) {
-      display: none !important;
+      display: none;
     }
-    /* Show them when the line is active/focused */
-    .cm-s-hypermd-light .CodeMirror-activeline .hmd-hidden-token,
-    .cm-s-hypermd-light .CodeMirror-activeline .cm-formatting,
-    .cm-s-hypermd-light .CodeMirror-focused .CodeMirror-activeline .cm-formatting {
+    /* Show them on the active/focused line - higher specificity */
+    .CodeMirror-focused .CodeMirror-activeline .cm-formatting,
+    .CodeMirror-focused .CodeMirror-activeline span.cm-formatting,
+    .cm-s-hypermd-light.CodeMirror-focused .CodeMirror-activeline .cm-formatting,
+    .CodeMirror.CodeMirror-focused .CodeMirror-activeline .cm-formatting {
       display: inline !important;
     }
     .cm-s-hypermd-light .cm-link {
