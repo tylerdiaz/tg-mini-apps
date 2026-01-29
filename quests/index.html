@@ -2273,8 +2273,8 @@
               }
             });
           } else if (item.entry) {
-            // New Supabase format
-            const key = item.entry.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 50);
+            // New Supabase format - use id or timestamp for unique key to preserve paper trail
+            const key = item.id ? `log-${item.id}` : `log-${item.logged_at}-${item.entry.slice(0, 30)}`;
             if (!seenEntries.has(key)) {
               seenEntries.add(key);
               activities.push({ entry: item.entry, time: item.logged_at, source: 'log' });
