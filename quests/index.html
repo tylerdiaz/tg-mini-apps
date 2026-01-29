@@ -615,6 +615,99 @@
     .draft-card.expanded {
       cursor: default;
     }
+    
+    /* Draft Detail View */
+    .draft-detail-view {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100%;
+      background: var(--bg);
+      padding: 12px;
+      overflow-y: auto;
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 150ms ease-in-out;
+      will-change: transform;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
+    .draft-detail-view.open {
+      transform: translateX(0);
+    }
+    body:not(.tg-webapp) .draft-detail-view {
+      transform: none;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease-in-out;
+    }
+    body:not(.tg-webapp) .draft-detail-view.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .draft-detail-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+    .draft-detail-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .draft-detail-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .draft-detail-badge.idea { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .draft-detail-badge.backlog { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .draft-detail-badge.specced { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+    .draft-detail-badge.ready { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .draft-detail-badge.paused { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+    .draft-action-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--secondary-bg);
+      position: relative;
+    }
+    .draft-overflow-menu {
+      position: absolute;
+      bottom: 60px;
+      right: 0;
+      background: var(--bg);
+      border: 1px solid var(--secondary-bg);
+      border-radius: 10px;
+      padding: 6px;
+      min-width: 160px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      display: none;
+      z-index: 50;
+    }
+    .draft-overflow-menu.open {
+      display: block;
+    }
+    /* Draft context editor */
+    #draft-context-editor {
+      min-height: 150px;
+      background: transparent !important;
+    }
+    #draft-context-editor .CodeMirror {
+      min-height: 150px;
+    }
+    #draft-context-editor textarea,
+    #draft-context-editor .CodeMirror,
+    #draft-context-editor .CodeMirror-scroll {
+      background: transparent !important;
+      color: var(--text) !important;
+    }
     .draft-header {
       display: flex;
       align-items: flex-start;
@@ -1899,6 +1992,12 @@
     <div id="detail-content"></div>
   </div>
   
+  <!-- Draft Detail View -->
+  <div class="draft-detail-view" id="draft-detail-view">
+    <button class="back-btn" onclick="closeDraftDetail()">← Back</button>
+    <div id="draft-detail-content"></div>
+  </div>
+  
   <div class="lightbox" id="lightbox" onclick="closeLightbox()">
     <div class="lightbox-filename" id="lightbox-filename"></div>
     <img id="lightbox-img" src="" alt="">
@@ -2384,15 +2483,23 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_notes' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_pr_activity' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_drafts' }, () => loadDrafts())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'draft_logs' }, () => loadDrafts())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'draft_assets' }, () => loadDrafts())
         .subscribe();
     }
 
     // ==================== DRAFTS FEATURE ====================
     let DRAFTS = [];
+    let draftLogs = {};
+    let draftAssets = {};
     let currentTab = 'quests';
     let editingDraftId = null;
     let promotingDraftId = null;
     let expandedDraftId = null;
+    let currentDraft = null;
+    let draftContextEditor = null;
+    let lastSavedDraftContext = '';
+    let draftSaveTimeout = null;
     
     const draftStatusConfig = {
       idea: { emoji: '💭', label: 'Idea', color: '#8b5cf6' },
@@ -2438,7 +2545,7 @@
       lucide.createIcons();
     }
     
-    // Load drafts from Supabase
+    // Load drafts from Supabase (with logs and assets)
     async function loadDrafts() {
       const container = document.getElementById('drafts-container');
       document.getElementById('drafts-count').textContent = 'Loading...';
@@ -2459,7 +2566,7 @@
               <p>⚠️ Table not found</p>
               <p style="font-size:12px;margin-top:8px;opacity:0.7;">
                 Run the migration in Supabase SQL Editor:<br>
-                <code style="font-size:10px;">migrations/001_quest_drafts.sql</code>
+                <code style="font-size:10px;">migrations/002_draft_v2.sql</code>
               </p>
             </div>
           `;
@@ -2471,7 +2578,41 @@
         return;
       }
       
-      DRAFTS = drafts || [];
+      // Load draft logs
+      const { data: logs } = await db
+        .from('draft_logs')
+        .select('*')
+        .order('logged_at', { ascending: false });
+      
+      draftLogs = {};
+      if (logs) {
+        logs.forEach(log => {
+          if (!draftLogs[log.draft_id]) draftLogs[log.draft_id] = [];
+          draftLogs[log.draft_id].push(log);
+        });
+      }
+      
+      // Load draft assets
+      const { data: assets } = await db
+        .from('draft_assets')
+        .select('*')
+        .order('uploaded_at', { ascending: false });
+      
+      draftAssets = {};
+      if (assets) {
+        assets.forEach(asset => {
+          if (!draftAssets[asset.draft_id]) draftAssets[asset.draft_id] = [];
+          draftAssets[asset.draft_id].push(asset);
+        });
+      }
+      
+      // Attach logs and assets to drafts
+      DRAFTS = (drafts || []).map(d => ({
+        ...d,
+        logs: draftLogs[d.id] || [],
+        assets: draftAssets[d.id] || []
+      }));
+      
       renderDrafts();
     }
     
@@ -2494,24 +2635,37 @@
       let html = '';
       DRAFTS.forEach(draft => {
         const cfg = draftStatusConfig[draft.status] || draftStatusConfig.idea;
-        const isExpanded = expandedDraftId === draft.id;
+        const hasContext = draft.context && draft.context.trim();
+        const logsCount = draft.logs?.length || 0;
+        const assetsCount = draft.assets?.length || 0;
+        
+        // Preview of context (first 60 chars)
+        let preview = '';
+        if (hasContext) {
+          preview = draft.context.trim().split('\n')[0].slice(0, 60);
+          if (preview.length < draft.context.trim().length) preview += '...';
+        } else if (draft.description) {
+          preview = draft.description.slice(0, 60);
+          if (preview.length < draft.description.length) preview += '...';
+        }
         
         html += `
-          <div class="draft-card ${isExpanded ? 'expanded' : ''}" 
+          <div class="draft-card" 
                id="draft-${draft.id}"
-               onclick="${isExpanded ? '' : `toggleDraftExpand('${draft.id}')`}">
+               onclick="openDraftDetail('${draft.id}')">
             <div class="draft-header">
               <span class="draft-status-icon">${cfg.emoji}</span>
               <div class="draft-content">
                 <div class="draft-title">${draft.title}</div>
+                ${preview ? `<div class="draft-preview" style="font-size:12px;color:var(--hint);margin:4px 0;line-height:1.4;">${preview}</div>` : ''}
                 <div class="draft-meta">
                   <span class="draft-status-badge ${draft.status}">${cfg.label}</span>
-                  ${draft.source_file ? `<span class="draft-source">${icon('file-text', 10)} ${draft.source_id || 'imported'}</span>` : ''}
+                  ${assetsCount > 0 ? `<span>${icon('paperclip', 10)} ${assetsCount}</span>` : ''}
+                  ${logsCount > 0 ? `<span>${icon('activity', 10)} ${logsCount}</span>` : ''}
                   <span>${timeAgo(draft.updated_at)}</span>
                 </div>
               </div>
             </div>
-            ${isExpanded ? renderDraftExpanded(draft) : ''}
           </div>
         `;
       });
@@ -2520,48 +2674,408 @@
       lucide.createIcons();
     }
     
-    // Render expanded draft content
-    function renderDraftExpanded(draft) {
-      return `
-        <div class="draft-expand">
-          <textarea class="draft-description-input" 
-                    id="draft-desc-${draft.id}"
-                    placeholder="Add a description..."
-                    onclick="event.stopPropagation()"
-                    onchange="updateDraftDescription('${draft.id}')">${draft.description || ''}</textarea>
-          <div class="draft-actions">
-            <button class="draft-action-btn primary" onclick="event.stopPropagation(); openPromoteSheet('${draft.id}')">
-              ${icon('rocket', 14)} Promote
-            </button>
-            <button class="draft-action-btn secondary" onclick="event.stopPropagation(); openEditDraftSheet('${draft.id}')">
-              ${icon('edit-3', 14)} Edit
-            </button>
-            <button class="draft-action-btn danger" onclick="event.stopPropagation(); deleteDraft('${draft.id}')">
-              ${icon('trash-2', 14)}
-            </button>
+    // Open draft detail view
+    function openDraftDetail(draftId, pushState = true) {
+      const draft = DRAFTS.find(d => d.id === draftId);
+      if (!draft) return;
+      
+      currentDraft = draft;
+      lastSavedDraftContext = draft.context || '';
+      
+      // Update URL for browser mode
+      if (!isTelegram && pushState) {
+        history.pushState({ draftId: draftId }, '', `?tab=drafts&d=${encodeURIComponent(draftId)}`);
+      }
+      
+      const cfg = draftStatusConfig[draft.status] || draftStatusConfig.idea;
+      
+      // Render activity log
+      const logsHtml = renderDraftActivityLog(draft.logs);
+      
+      // Render assets
+      let assetsHtml = '';
+      if (draft.assets && draft.assets.length > 0) {
+        assetsHtml = `<div class="assets-grid">`;
+        draft.assets.forEach(asset => {
+          const assetUrl = `${SUPABASE_URL}/storage/v1/object/public/draft-assets/${asset.storage_path}`;
+          const isImage = asset.mime_type?.startsWith('image/');
+          const filename = asset.name || 'file';
+          const fileType = getFileType(asset.mime_type, filename);
+          
+          if (isImage) {
+            assetsHtml += `<div class="asset-item" onclick="openLightbox('${assetUrl}', '${filename.replace(/'/g, "\\'")}')">
+              <img src="${assetUrl}" alt="${filename}" loading="lazy">
+            </div>`;
+          } else {
+            assetsHtml += `<div class="asset-item" onclick="window.open('${assetUrl}', '_blank')">
+              <div class="file-icon">
+                <span class="icon">${icon(fileIcons[fileType] || 'paperclip', 24)}</span>
+                <span class="name">${filename}</span>
+              </div>
+              <div class="asset-actions">
+                <button class="asset-action-btn" onclick="event.stopPropagation(); downloadAsset('${assetUrl}', '${filename}')" title="Download">
+                  ${icon('download', 14)}
+                </button>
+              </div>
+            </div>`;
+          }
+        });
+        assetsHtml += '</div>';
+      }
+      
+      const activityCount = draft.logs?.length || 0;
+      const assetsCount = draft.assets?.length || 0;
+      
+      document.getElementById('draft-detail-content').innerHTML = `
+        <div class="draft-detail-title">${draft.title}</div>
+        <div class="draft-detail-badges">
+          <span class="draft-detail-badge ${draft.status}">${cfg.emoji} ${cfg.label}</span>
+          ${draft.source_file ? `<span class="draft-detail-badge" style="background:var(--secondary-bg);color:var(--hint);">${icon('file-text', 12)} ${draft.source_id || 'imported'}</span>` : ''}
+        </div>
+        
+        <!-- Context Section (Collapsible) -->
+        <div class="collapsible-section" id="draft-context-section">
+          <div class="collapsible-header" onclick="toggleSection('draft-context-section')">
+            ${icon('chevron-down', 14, 'var(--hint)')}
+            <span class="section-title">Context</span>
+            <span id="draft-save-indicator" class="save-indicator"></span>
+          </div>
+          <div class="collapsible-body">
+            <div id="draft-context-editor"></div>
+          </div>
+        </div>
+        
+        <!-- Notes & Files Section (Collapsible) -->
+        <div class="collapsible-section ${assetsCount === 0 ? 'collapsed' : ''}" id="draft-assets-section">
+          <div class="collapsible-header" onclick="toggleSection('draft-assets-section')">
+            ${icon('chevron-down', 14, 'var(--hint)')}
+            <span class="section-title">Notes & Files</span>
+            <span class="section-count">${assetsCount}</span>
+          </div>
+          <div class="collapsible-body">
+            ${assetsCount > 0 ? assetsHtml : '<p style="color:var(--hint);font-size:13px;">Drag & drop files to attach</p>'}
+          </div>
+        </div>
+        
+        <!-- Activity Section (Collapsible) -->
+        <div class="collapsible-section ${activityCount === 0 ? 'collapsed' : ''}" id="draft-activity-section">
+          <div class="collapsible-header" onclick="toggleSection('draft-activity-section')">
+            ${icon('chevron-down', 14, 'var(--hint)')}
+            <span class="section-title">Activity</span>
+            <span class="section-count">${activityCount}</span>
+          </div>
+          <div class="collapsible-body">
+            ${logsHtml}
+          </div>
+        </div>
+        
+        <div class="draft-action-bar">
+          <button class="action-btn primary" onclick="openPromoteSheet('${draft.id}')">
+            ${icon('rocket', 16)} Promote to Quest
+          </button>
+          <button class="action-btn overflow-btn" onclick="toggleDraftOverflowMenu()">
+            ${icon('more-horizontal', 18)}
+          </button>
+          <div class="draft-overflow-menu" id="draft-overflow-menu">
+            <button class="overflow-item" onclick="openEditDraftSheet('${draft.id}')">${icon('edit-3', 14)} Edit Title/Status</button>
+            <button class="overflow-item" onclick="archiveDraft('${draft.id}')">${icon('archive', 14)} Archive</button>
+            <div class="overflow-divider"></div>
+            <button class="overflow-item danger" onclick="deleteDraft('${draft.id}')">${icon('trash-2', 14)} Delete</button>
           </div>
         </div>
       `;
+      
+      document.getElementById('draft-detail-view').classList.add('open');
+      if (isTelegram) tg.BackButton.show();
+      lucide.createIcons();
+      
+      // Initialize context editor
+      setTimeout(() => initDraftContextEditor(), 50);
     }
     
-    // Toggle draft expansion
-    function toggleDraftExpand(draftId) {
-      expandedDraftId = expandedDraftId === draftId ? null : draftId;
-      renderDrafts();
+    // Close draft detail view
+    function closeDraftDetail() {
+      const detailView = document.getElementById('draft-detail-view');
+      detailView.classList.remove('open');
+      if (isTelegram && !currentQuest) tg.BackButton.hide();
+      currentDraft = null;
+      
+      // Clear URL param in browser mode
+      if (!isTelegram) {
+        history.pushState({ tab: 'drafts' }, '', '?tab=drafts');
+      }
+      
+      // Clean up editor after transition
+      setTimeout(() => {
+        if (draftContextEditor) {
+          draftContextEditor.toTextArea();
+          draftContextEditor = null;
+        }
+        document.getElementById('draft-detail-content').innerHTML = '';
+      }, 180);
+      
+      // Refresh drafts list
+      loadDrafts();
     }
     
-    // Update draft description
-    async function updateDraftDescription(draftId) {
-      const textarea = document.getElementById(`draft-desc-${draftId}`);
-      if (!textarea) return;
+    // Render draft activity log
+    function renderDraftActivityLog(logs) {
+      if (!logs || logs.length === 0) {
+        return '<p class="context-text" style="opacity:0.5">No activity yet</p>';
+      }
+      
+      let html = '<div class="activity-timeline">';
+      
+      logs.forEach(item => {
+        let mainContent = item.entry || '';
+        let inlineToggle = '';
+        let diffBlock = '';
+        
+        // Check for diffs
+        if (mainContent.includes('\n+ ') || mainContent.includes('\n- ')) {
+          const parts = mainContent.split('\n');
+          mainContent = parts[0];
+          const diffLines = parts.slice(1).filter(l => l.trim());
+          if (diffLines.length > 0) {
+            const diffId = 'draft-diff-' + Math.random().toString(36).substr(2, 9);
+            const diffContent = diffLines.map(l => {
+              const escaped = l.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              if (l.startsWith('+ ')) return `<span class="diff-line diff-add">${escaped}</span>`;
+              if (l.startsWith('- ')) return `<span class="diff-line diff-remove">${escaped}</span>`;
+              return `<span class="diff-line diff-context">${escaped}</span>`;
+            }).join('');
+            
+            inlineToggle = `<span class="feed-item-toggle" onclick="event.stopPropagation(); const diff = document.getElementById('${diffId}'); diff.classList.toggle('open'); this.classList.toggle('open');">${icon('chevron-right', 10)} diff</span>`;
+            diffBlock = `<div class="feed-item-diff" id="${diffId}"><div class="diff-header">Changes</div>${diffContent}</div>`;
+          }
+        }
+        
+        // Determine icon based on content
+        let iconType = 'default';
+        let iconName = 'message-circle';
+        const lowerEntry = mainContent.toLowerCase();
+        if (lowerEntry.includes('context') || lowerEntry.includes('📝')) {
+          iconType = 'update';
+          iconName = 'edit-3';
+        } else if (lowerEntry.includes('attach') || lowerEntry.includes('📎')) {
+          iconType = 'attach';
+          iconName = 'paperclip';
+        } else if (lowerEntry.includes('status') || lowerEntry.includes('→')) {
+          iconType = 'status';
+          iconName = 'activity';
+        }
+        
+        html += `
+          <div class="activity-item">
+            <div class="activity-icon ${iconType}">
+              ${icon(iconName, 16)}
+            </div>
+            <div class="activity-body">
+              <div class="activity-main">${mainContent}${inlineToggle}</div>
+              ${diffBlock}
+              <div class="activity-meta">${timeAgoFull(item.logged_at)}</div>
+            </div>
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+      return html;
+    }
+    
+    // Initialize draft context editor (HyperMD)
+    function initDraftContextEditor() {
+      if (draftContextEditor) {
+        draftContextEditor.toTextArea();
+        draftContextEditor = null;
+      }
+      
+      const container = document.getElementById('draft-context-editor');
+      if (!container) return;
+      
+      const textarea = document.createElement('textarea');
+      textarea.id = 'draft-context-textarea';
+      textarea.value = currentDraft?.context || currentDraft?.description || '';
+      container.innerHTML = '';
+      container.appendChild(textarea);
+      
+      lastSavedDraftContext = currentDraft?.context || '';
+      
+      draftContextEditor = HyperMD.fromTextArea(textarea, {
+        hmdModeLoader: "https://cdn.jsdelivr.net/npm/codemirror@5/",
+        lineNumbers: false,
+        lineWrapping: true,
+        theme: 'hypermd-light',
+        hmdFold: {
+          image: true,
+          link: true,
+          math: false,
+          html: true,
+          emoji: true,
+          code: true,
+        },
+        hmdHideToken: true,
+        hmdTableAlign: true,
+      });
+      
+      // Auto-save on change
+      draftContextEditor.on('change', () => {
+        if (draftSaveTimeout) clearTimeout(draftSaveTimeout);
+        draftSaveTimeout = setTimeout(autoSaveDraftContext, 1000);
+      });
+      
+      // Hide tokens on blur
+      draftContextEditor.on('blur', () => {
+        setTimeout(() => {
+          if (draftContextEditor && !draftContextEditor.hasFocus()) {
+            const lastLine = draftContextEditor.lastLine();
+            const lastCh = draftContextEditor.getLine(lastLine)?.length || 0;
+            draftContextEditor.setCursor(lastLine, lastCh);
+          }
+        }, 10);
+      });
+      
+      // Initialize cursor
+      setTimeout(() => {
+        if (draftContextEditor) {
+          const lastLine = draftContextEditor.lastLine();
+          const lastCh = draftContextEditor.getLine(lastLine)?.length || 0;
+          draftContextEditor.setCursor(lastLine, lastCh);
+          draftContextEditor.getInputField().blur();
+        }
+      }, 50);
+    }
+    
+    // Auto-save draft context
+    async function autoSaveDraftContext() {
+      if (!currentDraft || !draftContextEditor) return;
+      
+      const indicator = document.getElementById('draft-save-indicator');
+      const newContext = draftContextEditor.getValue();
+      
+      if (newContext === lastSavedDraftContext) return;
+      
+      indicator.className = 'save-indicator saving';
+      indicator.textContent = 'Saving...';
       
       const { error } = await db
         .from('quest_drafts')
-        .update({ description: textarea.value })
+        .update({ context: newContext, updated_at: new Date().toISOString() })
+        .eq('id', currentDraft.id);
+      
+      if (error) {
+        indicator.className = 'save-indicator error';
+        indicator.textContent = '✗ Failed';
+        setTimeout(() => { indicator.className = 'save-indicator'; }, 2000);
+        return;
+      }
+      
+      // Log the change if content actually changed meaningfully
+      if (newContext.trim() !== lastSavedDraftContext.trim()) {
+        const oldLines = (lastSavedDraftContext || '').split('\n');
+        const newLines = (newContext || '').split('\n');
+        const added = newLines.filter(l => l.trim() && !oldLines.includes(l));
+        const removed = oldLines.filter(l => l.trim() && !newLines.includes(l));
+        
+        let diffSummary = '';
+        if (added.length > 0 || removed.length > 0) {
+          const diffLines = [];
+          removed.slice(0, 3).forEach(l => diffLines.push('- ' + l.slice(0, 80)));
+          added.slice(0, 3).forEach(l => diffLines.push('+ ' + l.slice(0, 80)));
+          if (added.length > 3 || removed.length > 3) {
+            diffLines.push(`... and ${Math.max(0, added.length - 3) + Math.max(0, removed.length - 3)} more changes`);
+          }
+          diffSummary = '\n' + diffLines.join('\n');
+        }
+        
+        await db.from('draft_logs').insert({
+          draft_id: currentDraft.id,
+          entry: '📝 Context updated' + diffSummary,
+          logged_at: new Date().toISOString()
+        });
+      }
+      
+      lastSavedDraftContext = newContext;
+      currentDraft.context = newContext;
+      indicator.className = 'save-indicator saved';
+      indicator.textContent = '✓ Saved';
+      setTimeout(() => { indicator.className = 'save-indicator'; }, 1500);
+    }
+    
+    // Toggle draft overflow menu
+    function toggleDraftOverflowMenu() {
+      const menu = document.getElementById('draft-overflow-menu');
+      menu.classList.toggle('open');
+    }
+    
+    // Archive draft
+    async function archiveDraft(draftId) {
+      const { error } = await db
+        .from('quest_drafts')
+        .update({ status: 'paused', updated_at: new Date().toISOString() })
         .eq('id', draftId);
       
       if (error) {
-        showToast('❌ Failed to save');
+        showToast('❌ Failed to archive');
+        return;
+      }
+      
+      await db.from('draft_logs').insert({
+        draft_id: draftId,
+        entry: '⏸️ Draft archived',
+        logged_at: new Date().toISOString()
+      });
+      
+      showToast('📦 Draft archived');
+      closeDraftDetail();
+    }
+    
+    // Upload file to draft
+    async function uploadDraftFile(file) {
+      if (!currentDraft) return;
+      
+      const timestamp = Date.now();
+      const storagePath = `${currentDraft.id}/${timestamp}-${file.name}`;
+      
+      const { error: uploadError } = await db.storage
+        .from('draft-assets')
+        .upload(storagePath, file);
+      
+      if (uploadError) {
+        showToast(`❌ Upload failed: ${uploadError.message}`);
+        console.error('Upload error:', uploadError);
+        return;
+      }
+      
+      const { error: dbError } = await db
+        .from('draft_assets')
+        .insert({
+          draft_id: currentDraft.id,
+          name: file.name,
+          storage_path: storagePath,
+          mime_type: file.type
+        });
+      
+      if (dbError) {
+        showToast(`❌ DB error: ${dbError.message}`);
+        console.error('DB error:', dbError);
+        return;
+      }
+      
+      await db.from('draft_logs').insert({
+        draft_id: currentDraft.id,
+        entry: `📎 Attached: ${file.name}`,
+        logged_at: new Date().toISOString()
+      });
+      
+      showToast(`✓ Uploaded ${file.name}`);
+      
+      // Reload and re-open
+      await loadDrafts();
+      const updatedDraft = DRAFTS.find(d => d.id === currentDraft.id);
+      if (updatedDraft) {
+        currentDraft = updatedDraft;
+        openDraftDetail(currentDraft.id, false);
       }
     }
     
@@ -2722,16 +3236,21 @@
       const topic = topicBtn.dataset.topic;
       const priority = priorityBtn?.dataset.priority || 'P2';
       
-      // Create quest
-      const { error: questError } = await db
+      // Use context if available, fall back to description
+      const contextToUse = draft.context || draft.description || '';
+      
+      // Create quest with full context
+      const { data: newQuest, error: questError } = await db
         .from('quests')
         .insert({
           title,
           topic,
           priority,
           status: 'investigating',
-          context: draft.description || ''
-        });
+          context: contextToUse
+        })
+        .select()
+        .single();
       
       if (questError) {
         showToast('❌ Failed to create quest');
@@ -2739,17 +3258,61 @@
         return;
       }
       
-      // Delete draft
+      // Copy any draft assets to quest assets
+      if (draft.assets && draft.assets.length > 0 && newQuest) {
+        for (const asset of draft.assets) {
+          // Copy file in storage (download from draft-assets, upload to quest-assets)
+          const sourceUrl = `${SUPABASE_URL}/storage/v1/object/public/draft-assets/${asset.storage_path}`;
+          try {
+            const response = await fetch(sourceUrl);
+            const blob = await response.blob();
+            const newPath = `${newQuest.id}/${Date.now()}-${asset.name}`;
+            
+            await db.storage.from('quest-assets').upload(newPath, blob);
+            await db.from('quest_assets').insert({
+              quest_id: newQuest.id,
+              name: asset.name,
+              storage_path: newPath,
+              mime_type: asset.mime_type
+            });
+          } catch (err) {
+            console.warn('Failed to copy asset:', asset.name, err);
+          }
+        }
+      }
+      
+      // Add log entry about promotion
+      if (newQuest) {
+        await db.from('quest_logs').insert({
+          quest_id: newQuest.id,
+          entry: `🚀 Promoted from draft "${draft.title}"`,
+          logged_at: new Date().toISOString()
+        });
+      }
+      
+      // Delete draft and its assets
+      await db.from('draft_assets').delete().eq('draft_id', promotingDraftId);
+      await db.from('draft_logs').delete().eq('draft_id', promotingDraftId);
       await db.from('quest_drafts').delete().eq('id', promotingDraftId);
       
       showToast('🚀 Quest created!');
       closePromoteSheet();
-      expandedDraftId = null;
+      
+      // Close draft detail if open
+      if (currentDraft && currentDraft.id === promotingDraftId) {
+        closeDraftDetail();
+      }
+      
       loadDrafts();
       loadQuests();
       
-      // Switch to quests tab
-      setTimeout(() => switchTab('quests'), 500);
+      // Switch to quests tab and open the new quest
+      setTimeout(() => {
+        switchTab('quests');
+        if (newQuest) {
+          setTimeout(() => openQuest(newQuest.id), 300);
+        }
+      }, 500);
     }
     
     // Render inline feed (for tab)
@@ -3980,10 +4543,16 @@
     
     // Handle browser back/forward
     window.addEventListener('popstate', (e) => {
-      if (e.state?.questId) {
+      if (e.state?.draftId) {
+        openDraftDetail(e.state.draftId, false);
+      } else if (e.state?.questId) {
         openQuest(e.state.questId, false);
+      } else if (e.state?.tab === 'drafts') {
+        closeDraftDetail();
+        switchTab('drafts');
       } else {
         closeDetail();
+        closeDraftDetail();
       }
     });
     
@@ -4070,14 +4639,24 @@
     }
     
     // Restore quest or view from URL on load
-    function restoreFromUrl() {
+    async function restoreFromUrl() {
       const params = new URLSearchParams(window.location.search);
       const questId = params.get('q');
+      const draftId = params.get('d');
       const tab = params.get('tab');
       const view = params.get('view'); // legacy support
       
       if (tab === 'drafts') {
         switchTab('drafts');
+        // Also open draft detail if specified - wait for drafts to load
+        if (draftId) {
+          // Drafts may not be loaded yet, wait a bit
+          await new Promise(resolve => setTimeout(resolve, 200));
+          if (DRAFTS.length === 0) await loadDrafts();
+          if (DRAFTS.find(d => d.id === draftId)) {
+            openDraftDetail(draftId, false);
+          }
+        }
       } else if (tab === 'feed' || view === 'feed') {
         switchTab('feed');
       } else if (questId && QUESTS.length > 0) {
@@ -4416,7 +4995,8 @@
       document.addEventListener('dragenter', (ev) => {
         ev.preventDefault();
         dragCounter++;
-        if (currentQuest) {
+        // Show overlay if either quest or draft detail is open
+        if (currentQuest || currentDraft) {
           overlay.classList.add('visible');
         }
       });
@@ -4438,8 +5018,28 @@
         dragCounter = 0;
         overlay.classList.remove('visible');
         
+        // Handle draft uploads if draft detail is open
+        if (currentDraft) {
+          const files = ev.dataTransfer.files;
+          if (!files.length) return;
+          
+          overlay.classList.add('uploading');
+          const overlayText = overlay.querySelector('.drop-overlay-text');
+          
+          for (const file of files) {
+            overlayText.textContent = `⏳ Uploading ${file.name}...`;
+            await uploadDraftFile(file);
+          }
+          
+          overlay.classList.remove('uploading');
+          overlayText.innerHTML = `${icon('paperclip', 20)} Drop to attach`;
+          lucide.createIcons();
+          return;
+        }
+        
+        // Handle quest uploads
         if (!currentQuest) {
-          showToast('Open a quest first to attach files');
+          showToast('Open a quest or draft first to attach files');
           return;
         }
         
@@ -4519,7 +5119,14 @@
     document.getElementById("sort-btn").addEventListener("click", openSortSheet);
 
     if (isTelegram) {
-      tg.BackButton.onClick(closeDetail);
+      tg.BackButton.onClick(() => {
+        // Close draft detail first if open
+        if (currentDraft) {
+          closeDraftDetail();
+        } else {
+          closeDetail();
+        }
+      });
     }
     
     // Keyboard shortcuts (browser mode)
@@ -4527,6 +5134,8 @@
       if (e.key === 'Escape') {
         if (document.getElementById('lightbox').classList.contains('open')) {
           closeLightbox();
+        } else if (document.getElementById('draft-detail-view').classList.contains('open')) {
+          closeDraftDetail();
         } else if (document.getElementById('detail-view').classList.contains('open')) {
           closeDetail();
         } else if (document.getElementById('filter-sheet').classList.contains('open')) {
@@ -4534,6 +5143,15 @@
         } else if (document.getElementById('sort-sheet').classList.contains('open')) {
           closeSortSheet();
         }
+      }
+    });
+    
+    // Close draft overflow menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const draftMenu = document.getElementById('draft-overflow-menu');
+      const draftBtn = e.target.closest('.overflow-btn');
+      if (draftMenu && !draftBtn && !e.target.closest('.draft-overflow-menu')) {
+        draftMenu.classList.remove('open');
       }
     });
 
