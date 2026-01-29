@@ -3884,6 +3884,11 @@
         return `<strong style="color:var(--link);">#${prNum}</strong>`;
       });
       
+      // Headers (### then ## then #)
+      html = html.replace(/^###\s+(.+)$/gm, '<strong style="font-size:13px;display:block;margin:12px 0 6px;">$1</strong>');
+      html = html.replace(/^##\s+(.+)$/gm, '<strong style="font-size:14px;display:block;margin:14px 0 8px;">$1</strong>');
+      html = html.replace(/^#\s+(.+)$/gm, '<strong style="font-size:15px;display:block;margin:16px 0 10px;">$1</strong>');
+      
       // Bullet lists (- or *)
       html = html.replace(/^[\-\*]\s+(.+)$/gm, '<li style="margin-left:16px;list-style:disc;">$1</li>');
       
@@ -4382,11 +4387,32 @@
         result.type = 'attach';
         result.icon = 'paperclip';
       }
+      // Detect linked notes (Obsidian, etc)
+      else if (lowerEntry.includes('linked obsidian') || lowerEntry.includes('🔗 linked')) {
+        result.type = 'attach';
+        result.icon = 'link';
+        // Remove redundant emoji from text
+        result.html = result.html.replace(/^🔗\s*/, '').replace(/^📎\s*/, '');
+      }
+      // Detect quest creation
+      else if (lowerEntry.includes('quest created') || lowerEntry.includes('🆕')) {
+        result.type = 'default';
+        result.icon = 'plus-circle';
+        // Remove redundant emoji
+        result.html = result.html.replace(/^🆕\s*/, '');
+      }
+      // Detect ticket links
+      else if (lowerEntry.includes('linked pingcode') || lowerEntry.includes('🎫')) {
+        result.type = 'default';
+        result.icon = 'ticket';
+        result.html = result.html.replace(/^🎫\s*/, '');
+      }
       
-      // Link any remaining GitHub URLs
+      // Link any remaining GitHub URLs that aren't already in <a> tags
+      // Use negative lookbehind to skip URLs already wrapped in href="..."
       result.html = result.html.replace(
-        /(https:\/\/github\.com\/[^\s<)]+)/g,
-        '<a href="$1" target="_blank">$1</a>'
+        /(?<!href=["'])(https:\/\/github\.com\/[^\s<)"']+)/g,
+        '<a href="$1" target="_blank" style="color:var(--link);">$1</a>'
       );
       
       return result;
