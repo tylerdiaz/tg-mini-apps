@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Navigator</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --bg: var(--tg-theme-bg-color, #1a1a1a);
@@ -528,8 +529,71 @@
       document.body.classList.add('tg-webapp');
     }
 
-    // Quest data - synced by sync.js
-    const QUESTS = [
+    // Supabase config
+    const SUPABASE_URL = 'https://jhpoiyhxcfxoezcbxdss.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpocG9peWh4Y2Z4b2V6Y2J4ZHNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2NDc5NTUsImV4cCI6MjA4NTIyMzk1NX0.PElgaG4p1oN5XlZMQX4wEFscXfBFj0OTcx5z3Xmfn1I';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Quest data - loaded from Supabase
+    let QUESTS = [];
+    let questLogs = {};
+
+    async function loadQuests() {
+      document.getElementById('results-count').textContent = 'Loading...';
+      
+      const { data: quests, error: qErr } = await supabase
+        .from('quests')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      
+      if (qErr) {
+        console.error('Error loading quests:', qErr);
+        document.getElementById('results-count').textContent = 'Error loading';
+        return;
+      }
+      
+      const { data: logs } = await supabase
+        .from('quest_logs')
+        .select('*')
+        .order('logged_at', { ascending: false });
+      
+      questLogs = {};
+      if (logs) {
+        logs.forEach(log => {
+          if (!questLogs[log.quest_id]) questLogs[log.quest_id] = [];
+          questLogs[log.quest_id].push(log);
+        });
+      }
+      
+      QUESTS = quests.map(q => ({
+        id: q.id,
+        topic: q.topic,
+        title: q.title,
+        status: q.status,
+        priority: q.priority,
+        context: q.context,
+        collaborator: q.collaborator,
+        created: q.created_at?.split('T')[0],
+        updated: q.updated_at?.split('T')[0],
+        log: questLogs[q.id] || [],
+        assets: []
+      }));
+      
+      renderFilterBar();
+      renderQuests();
+    }
+
+    function subscribeToChanges() {
+      supabase
+        .channel('quests-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quests' }, () => loadQuests())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_logs' }, () => loadQuests())
+        .subscribe();
+    }
+
+    // Legacy embedded data removed - now loading from Supabase
+    const _LEGACY_QUESTS = [
         {
           "id": "abuse-ops-dashboard",
           "topic": "dev",
@@ -793,12 +857,14 @@
 
     function timeAgo(dateStr) {
       if (!dateStr) return '';
-      const date = new Date(dateStr + 'T12:00:00');
+      // Handle both ISO and YYYY-MM-DD formats
+      const date = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'T12:00:00');
       const now = new Date();
       const diffMs = now - date;
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffDays = Math.floor(diffHours / 24);
       
+      if (diffHours < 0) return 'now';
       if (diffHours < 1) return 'now';
       if (diffHours < 24) return `${diffHours}h`;
       if (diffDays < 7) return `${diffDays}d`;
@@ -1076,11 +1142,22 @@
       const cfg = statusConfig[quest.status] || statusConfig.active;
 
       let logHtml = "";
-      quest.log.forEach(day => {
-        logHtml += `<div class="log-entry">
-          <div class="log-date">${day.date}</div>
-          <div class="log-content">${day.entries.map(e => "• " + e).join("<br>")}</div>
-        </div>`;
+      // Handle both old format (day.entries[]) and new Supabase format (entry, logged_at)
+      quest.log.forEach(item => {
+        if (item.entries) {
+          // Old format
+          logHtml += `<div class="log-entry">
+            <div class="log-date">${item.date}</div>
+            <div class="log-content">${item.entries.map(e => "• " + e).join("<br>")}</div>
+          </div>`;
+        } else if (item.entry) {
+          // New Supabase format
+          const logDate = item.logged_at ? new Date(item.logged_at).toLocaleDateString() : '';
+          logHtml += `<div class="log-entry">
+            <div class="log-date">${logDate}</div>
+            <div class="log-content">• ${item.entry}</div>
+          </div>`;
+        }
       });
 
       let assetsHtml = "";
@@ -1171,9 +1248,9 @@
 
     if (tg) tg.BackButton.onClick(closeDetail);
 
-    // Initial render
-    renderFilterBar();
-    renderQuests();
+    // Initial load from Supabase + real-time subscription
+    loadQuests();
+    subscribeToChanges();
   </script>
 </body>
 </html>
