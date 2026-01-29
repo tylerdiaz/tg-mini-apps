@@ -1078,31 +1078,32 @@
       margin-top: 16px;
     }
     .next-moves-section .sidebar-section-title {
-      color: #22c55e;
+      color: var(--hint);
       margin-bottom: 8px;
       font-size: 11px;
     }
     .next-moves-list {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
     }
     .next-move-item {
       display: flex;
-      gap: 10px;
+      align-items: baseline;
+      gap: 8px;
       font-size: 13px;
-      line-height: 1.4;
-      padding: 6px 0;
+      line-height: 1.5;
+      padding: 4px 0;
     }
     .next-move-item.urgent .next-move-text {
       color: #ef4444;
     }
     .next-move-number {
       flex-shrink: 0;
-      width: 18px;
-      color: #22c55e;
-      font-weight: 500;
-      font-size: 13px;
+      width: 16px;
+      text-align: right;
+      color: var(--hint);
+      font-size: 12px;
     }
     .next-move-item.urgent .next-move-number {
       color: #ef4444;
