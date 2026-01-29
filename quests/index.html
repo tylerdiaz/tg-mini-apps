@@ -302,14 +302,15 @@
     .cm-s-hypermd-light .cm-formatting {
       color: var(--hint) !important;
     }
-    /* Hide formatting characters completely when not editing */
+    /* Hide ALL formatting characters when not editing */
     .cm-s-hypermd-light .hmd-hidden-token,
-    .cm-s-hypermd-light .cm-formatting-code:not(.cm-formatting-code-block) {
+    .cm-s-hypermd-light .cm-formatting:not(.cm-formatting-code-block):not(.cm-formatting-list) {
       display: none !important;
     }
-    /* But show them when the line is active */
+    /* Show them when the line is active/focused */
     .cm-s-hypermd-light .CodeMirror-activeline .hmd-hidden-token,
-    .cm-s-hypermd-light .CodeMirror-activeline .cm-formatting-code {
+    .cm-s-hypermd-light .CodeMirror-activeline .cm-formatting,
+    .cm-s-hypermd-light .CodeMirror-focused .CodeMirror-activeline .cm-formatting {
       display: inline !important;
     }
     .cm-s-hypermd-light .cm-link {
@@ -358,30 +359,48 @@
       border: none !important;
       box-shadow: none !important;
     }
-    /* Code blocks */
-    .cm-s-hypermd-light pre.HyperMD-codeblock {
-      background: rgba(255,255,255,0.05) !important;
-      color: #e6edf3 !important; /* light gray for readability */
+    /* Code blocks - DARK background */
+    .cm-s-hypermd-light pre.HyperMD-codeblock,
+    .cm-s-hypermd-light .HyperMD-codeblock-bg,
+    .cm-s-hypermd-light .HyperMD-codeblock,
+    .CodeMirror pre.HyperMD-codeblock,
+    .HyperMD-codeblock-bg {
+      background: #161b22 !important;
+      color: #e6edf3 !important;
     }
     .cm-s-hypermd-light .HyperMD-codeblock .cm-variable,
     .cm-s-hypermd-light .HyperMD-codeblock .cm-variable-2,
-    .cm-s-hypermd-light .HyperMD-codeblock .cm-variable-3 {
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-variable-3,
+    .HyperMD-codeblock .cm-variable {
       color: #e6edf3 !important;
     }
-    .cm-s-hypermd-light .HyperMD-codeblock .cm-keyword {
-      color: #ff7b72 !important; /* soft red for keywords */
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-keyword,
+    .HyperMD-codeblock .cm-keyword {
+      color: #ff7b72 !important;
     }
-    .cm-s-hypermd-light .HyperMD-codeblock .cm-string {
-      color: #a5d6ff !important; /* soft blue for strings */
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-string,
+    .HyperMD-codeblock .cm-string {
+      color: #a5d6ff !important;
     }
-    .cm-s-hypermd-light .HyperMD-codeblock .cm-number {
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-number,
+    .HyperMD-codeblock .cm-number {
       color: #79c0ff !important;
     }
-    .cm-s-hypermd-light .HyperMD-codeblock .cm-comment {
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-comment,
+    .HyperMD-codeblock .cm-comment {
       color: #8b949e !important;
     }
-    .cm-s-hypermd-light .HyperMD-codeblock .cm-property {
-      color: #d2a8ff !important; /* soft purple */
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-property,
+    .HyperMD-codeblock .cm-property {
+      color: #d2a8ff !important;
+    }
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-def,
+    .HyperMD-codeblock .cm-def {
+      color: #ffa657 !important;
+    }
+    .cm-s-hypermd-light .HyperMD-codeblock .cm-atom,
+    .HyperMD-codeblock .cm-atom {
+      color: #79c0ff !important;
     }
     /* Hide fold gutter for cleaner look */
     .CodeMirror-foldgutter {
