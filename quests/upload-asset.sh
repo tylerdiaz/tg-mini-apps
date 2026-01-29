@@ -49,7 +49,7 @@ RECORD_RESULT=$(curl -s -X POST "${SUPABASE_URL}/rest/v1/quest_assets" \
   -H "Prefer: return=representation" \
   -d "{
     \"quest_id\": \"${QUEST_ID}\",
-    \"filename\": \"${FILENAME}\",
+    \"name\": \"${FILENAME}\",
     \"mime_type\": \"${MIME_TYPE}\",
     \"storage_path\": \"${STORAGE_PATH}\",
     \"size_bytes\": ${SIZE_BYTES}

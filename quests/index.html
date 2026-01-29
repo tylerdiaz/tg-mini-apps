@@ -1037,17 +1037,18 @@
         quest.assets.forEach(asset => {
           const assetUrl = `${SUPABASE_URL}/storage/v1/object/public/quest-assets/${asset.storage_path}`;
           const isImage = asset.mime_type?.startsWith('image/');
-          const fileType = getFileType(asset.mime_type, asset.filename);
+          const filename = asset.name || asset.filename || 'file';
+          const fileType = getFileType(asset.mime_type, filename);
           
           if (isImage) {
             assetsHtml += `<div class="asset-item" onclick="openLightbox('${assetUrl}')">
-              <img src="${assetUrl}" alt="${asset.filename}" loading="lazy">
+              <img src="${assetUrl}" alt="${filename}" loading="lazy">
             </div>`;
           } else {
             assetsHtml += `<div class="asset-item" onclick="window.open('${assetUrl}', '_blank')">
               <div class="file-icon">
                 <span class="icon">${fileIcons[fileType] || '📎'}</span>
-                <span class="name">${asset.filename}</span>
+                <span class="name">${filename}</span>
               </div>
             </div>`;
           }
