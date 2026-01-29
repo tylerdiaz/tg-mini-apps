@@ -951,32 +951,41 @@
       file: 'paperclip' 
     };
     
-    // Simple markdown renderer for summary/context
+    // Markdown renderer for summary/context
     function renderMarkdown(text) {
       if (!text) return '';
+      
+      // Handle code blocks first (```lang\ncode\n```)
+      text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+        return `<pre style="background:rgba(255,255,255,0.05);padding:10px;border-radius:6px;overflow-x:auto;font-size:11px;margin:8px 0;"><code>${code.trim()}</code></pre>`;
+      });
+      
       return text
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')  // **bold**
         .replace(/\*(.+?)\*/g, '<em>$1</em>')              // *italic*
-        .replace(/`(.+?)`/g, '<code style="background:rgba(255,255,255,0.1);padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>')  // `code`
+        .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.1);padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>')  // `code`
         .replace(/^• /gm, '‣ ')                            // bullets
         .replace(/\n/g, '<br>');                           // newlines
     }
     
-    function generateSummary(quest) {
+    function generateSummary(quest, full = false) {
       const status = quest.status || 'active';
       const context = quest.context || '';
       const lastLog = quest.log?.[0]?.entry || quest.log?.[0]?.entries?.[0] || '';
       
-      // Build summary from context (truncate if long)
-      let aboutText = context.length > 200 ? context.slice(0, 200) + '...' : context;
+      // Build summary from context (truncate only in compact mode)
+      let aboutText = context;
+      if (!full && context.length > 200) {
+        aboutText = context.slice(0, 200) + '...';
+      }
       if (!aboutText) aboutText = '<em>No context yet</em>';
       
       // Render markdown
       aboutText = renderMarkdown(aboutText);
       
-      // What's next from last log
+      // What's next from last log (only in compact mode)
       let nextText = '';
-      if (lastLog && status !== 'done' && status !== 'archived') {
+      if (!full && lastLog && status !== 'done' && status !== 'archived') {
         const renderedLog = renderMarkdown(lastLog.slice(0, 100) + (lastLog.length > 100 ? '...' : ''));
         nextText = `<br><br><span style="opacity:0.7">${icon('pin', 12)} <strong>Latest:</strong> ${renderedLog}</span>`;
       }
@@ -1380,7 +1389,7 @@
       const topicCfg = topicConfig[quest.topic] || { icon: 'folder', label: quest.topic };
       
       // Generate smart summary
-      const summary = generateSummary(quest);
+      const summary = generateSummary(quest, true);  // full=true for detail view
       
       // Check for PR link in context
       const prMatch = quest.context?.match(/PR[:\s#]*(\d+)|github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/i);
