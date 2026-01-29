@@ -1003,9 +1003,25 @@
     /* Summary editor in collapsible */
     .collapsible-body #summary-editor {
       min-height: 150px;
+      background: transparent !important;
     }
     .collapsible-body .CodeMirror {
       min-height: 150px;
+    }
+    /* Prevent white flash during editor init/destroy */
+    #summary-editor,
+    #summary-editor textarea,
+    #summary-editor .CodeMirror,
+    #summary-editor .CodeMirror-scroll {
+      background: transparent !important;
+      color: var(--text) !important;
+    }
+    /* Hide editor entirely during navigation */
+    #detail-content.nav-out-left #summary-editor,
+    #detail-content.nav-out-right #summary-editor,
+    #detail-content.nav-in-left #summary-editor,
+    #detail-content.nav-in-right #summary-editor {
+      visibility: hidden;
     }
     .feed-empty {
       text-align: center;
