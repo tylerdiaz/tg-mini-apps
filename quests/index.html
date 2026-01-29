@@ -375,6 +375,7 @@
     .detail-status.active { background: #3b82f622; color: #3b82f6; }
     .detail-status.blocked { background: #eab30822; color: #eab308; }
     .detail-status.done { background: #10b98122; color: #10b981; }
+    .detail-status.abandoned { background: #ef444422; color: #ef4444; }
     .detail-status.archived { background: #6b728022; color: #6b7280; }
     
     /* Full-page drop overlay */
@@ -948,6 +949,7 @@
       active: { icon: 'play-circle', color: '#3b82f6', label: 'Active' },
       blocked: { icon: 'pause-circle', color: '#eab308', label: 'Blocked' },
       done: { icon: 'check-circle-2', color: '#10b981', label: 'Done' },
+      abandoned: { icon: 'circle-x', color: '#ef4444', label: 'Abandoned' },
       archived: { icon: 'archive', color: '#6b7280', label: 'Archived' }
     };
     
@@ -1327,7 +1329,7 @@
       </button>`;
 
       // Quick filters for status
-      const quickFilters = ['active', 'blocked', 'done', 'archived'];
+      const quickFilters = ['active', 'blocked', 'done', 'abandoned', 'archived'];
       quickFilters.forEach(status => {
         const cfg = statusConfig[status];
         const isActive = filters.statuses.includes(status);
@@ -1513,8 +1515,9 @@
       
       // Filter
       let filtered = QUESTS.filter(q => {
-        // Hide archived by default (unless explicitly filtering for it)
+        // Hide archived/abandoned by default (unless explicitly filtering for them)
         if (q.status === 'archived' && !filters.statuses.includes('archived')) return false;
+        if (q.status === 'abandoned' && !filters.statuses.includes('abandoned')) return false;
         if (filters.topics.length > 0 && !filters.topics.includes(q.topic)) return false;
         if (filters.statuses.length > 0 && !filters.statuses.includes(q.status)) return false;
         if (!isWithinHours(q.updated, filters.timeHours)) return false;
@@ -1665,6 +1668,7 @@
         ${logHtml}
         
         <div class="action-bar">
+          <button class="action-btn secondary" onclick="abandonQuest()">${icon('circle-x', 16)} Abandon</button>
           <button class="action-btn secondary" onclick="archiveQuest()">${icon('archive', 16)} Archive</button>
           <button class="action-btn primary" onclick="markDone()">${icon('check-circle-2', 16)} Done</button>
         </div>
@@ -1721,6 +1725,26 @@
           .eq('id', currentQuest.id)
           .then(() => {
             showToast(`✅ Marked "${currentQuest.title}" done!`);
+            closeDetail();
+          });
+      }
+    }
+    
+    function abandonQuest() {
+      if (!currentQuest) return;
+      const payload = {
+        action: 'abandon',
+        quest_id: currentQuest.id,
+        topic: currentQuest.topic
+      };
+      if (isTelegram) {
+        tg.sendData(JSON.stringify(payload));
+      } else {
+        db.from('quests')
+          .update({ status: 'abandoned', updated_at: new Date().toISOString() })
+          .eq('id', currentQuest.id)
+          .then(() => {
+            showToast(`🚫 Abandoned "${currentQuest.title}"`);
             closeDetail();
           });
       }
