@@ -7,6 +7,10 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- Inconsolata font for code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- CodeMirror + HyperMD for Bear-style live preview -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5/lib/codemirror.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5/addon/fold/foldgutter.css">
@@ -350,7 +354,7 @@
       border-radius: 3px !important;
       border: none !important;
       box-shadow: none !important;
-      font-family: 'SF Mono', Monaco, monospace !important;
+      font-family: 'Inconsolata', 'SF Mono', Monaco, monospace !important;
       font-size: 0.9em !important;
     }
     /* Remove any HyperMD default borders on code */
@@ -805,7 +809,7 @@
       padding: 1px 5px;
       border-radius: 4px;
       font-size: 12px;
-      font-family: 'SF Mono', Monaco, monospace;
+      font-family: 'Inconsolata', 'SF Mono', Monaco, monospace;
       color: var(--link);
     }
     .activity-main code a {
@@ -825,10 +829,10 @@
       padding: 2px 8px;
       border-radius: 4px;
       font-size: 12px;
-      font-family: 'SF Mono', Monaco, monospace;
+      font-family: 'Inconsolata', 'SF Mono', Monaco, monospace;
     }
     .activity-sha {
-      font-family: 'SF Mono', Monaco, monospace;
+      font-family: 'Inconsolata', 'SF Mono', Monaco, monospace;
       font-size: 12px;
     }
     /* Legacy log styles (fallback) */
