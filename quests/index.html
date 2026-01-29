@@ -851,6 +851,36 @@
     .feed-item-content a {
       color: var(--link);
     }
+    .feed-item-diff {
+      margin-top: 6px;
+      font-family: 'Inconsolata', 'SF Mono', Monaco, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+      padding: 8px;
+      display: none;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .feed-item-diff.open {
+      display: block;
+    }
+    .feed-item-diff .diff-add {
+      color: #22c55e;
+    }
+    .feed-item-diff .diff-remove {
+      color: #ef4444;
+    }
+    .feed-item-toggle {
+      font-size: 11px;
+      color: var(--link);
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .feed-item-toggle:hover {
+      text-decoration: underline;
+    }
     .feed-empty {
       text-align: center;
       color: var(--hint);
@@ -1629,8 +1659,8 @@
           const quest = QUESTS.find(q => q.id === l.quest_id);
           if (!quest) return;
           
-          // Skip auto-generated context updates
-          if (l.entry === '📝 Context updated') return;
+          // Skip context updates without meaningful diff
+          if (l.entry === '📝 Context updated') return; // Old format without diff
           
           let iconType = 'update';
           let iconName = 'edit-3';
@@ -1683,6 +1713,29 @@
           html += `<div class="feed-time-divider">${group}</div>`;
           lastGroup = group;
         }
+        // Parse content for diffs
+        let mainContent = a.content || '';
+        let diffContent = '';
+        const diffIdx = mainContent.indexOf('\n+ ') !== -1 || mainContent.indexOf('\n- ') !== -1;
+        if (mainContent.includes('📝 Context updated\n')) {
+          const parts = mainContent.split('\n');
+          mainContent = parts[0];
+          const diffLines = parts.slice(1).filter(l => l.trim());
+          if (diffLines.length > 0) {
+            diffContent = diffLines.map(l => {
+              if (l.startsWith('+ ')) return `<span class="diff-add">${l}</span>`;
+              if (l.startsWith('- ')) return `<span class="diff-remove">${l}</span>`;
+              return l;
+            }).join('\n');
+          }
+        }
+        
+        const diffId = 'diff-' + Math.random().toString(36).substr(2, 9);
+        const diffHtml = diffContent ? `
+          <div class="feed-item-toggle" onclick="event.stopPropagation(); document.getElementById('${diffId}').classList.toggle('open'); this.textContent = this.textContent === 'Show changes' ? 'Hide changes' : 'Show changes';">Show changes</div>
+          <div class="feed-item-diff" id="${diffId}">${diffContent}</div>
+        ` : '';
+        
         html += `
           <div class="feed-item" onclick="openQuest('${a.quest.id}')">
             <div class="feed-item-icon ${a.type}">
@@ -1693,7 +1746,8 @@
                 <span class="feed-item-quest">${a.quest.title}</span>
                 <span class="feed-item-time">${timeAgoFull(a.timestamp)}</span>
               </div>
-              <div class="feed-item-content">${a.content || ''}</div>
+              <div class="feed-item-content">${mainContent}</div>
+              ${diffHtml}
             </div>
           </div>
         `;
@@ -2936,9 +2990,26 @@
       
       // Only log if content actually changed meaningfully (more than whitespace)
       if (newContext.trim() !== lastSavedContext.trim()) {
+        // Compute simple diff
+        const oldLines = (lastSavedContext || '').split('\n');
+        const newLines = (newContext || '').split('\n');
+        const added = newLines.filter(l => l.trim() && !oldLines.includes(l));
+        const removed = oldLines.filter(l => l.trim() && !newLines.includes(l));
+        
+        let diffSummary = '';
+        if (added.length > 0 || removed.length > 0) {
+          const diffLines = [];
+          removed.slice(0, 3).forEach(l => diffLines.push('- ' + l.slice(0, 80)));
+          added.slice(0, 3).forEach(l => diffLines.push('+ ' + l.slice(0, 80)));
+          if (added.length > 3 || removed.length > 3) {
+            diffLines.push(`... and ${Math.max(0, added.length - 3) + Math.max(0, removed.length - 3)} more changes`);
+          }
+          diffSummary = '\n' + diffLines.join('\n');
+        }
+        
         await db.from('quest_logs').insert({
           quest_id: currentQuest.id,
-          entry: '📝 Context updated',
+          entry: '📝 Context updated' + diffSummary,
           logged_at: new Date().toISOString()
         });
       }
