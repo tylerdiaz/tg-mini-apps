@@ -568,6 +568,13 @@
       justify-content: center;
       flex-shrink: 0;
     }
+    .activity-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      object-fit: cover;
+    }
     .activity-icon.commit { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
     .activity-icon.push { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
     .activity-icon.comment { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
@@ -1633,9 +1640,6 @@
         if (item.source === 'pr') {
           // PR comment/review
           const isReview = item.activity_type === 'review';
-          const iconName = isReview ? 'message-square-text' : 'message-circle';
-          const iconColor = isReview ? '#8b5cf6' : '#fbbf24';
-          const typeClass = isReview ? 'review' : 'comment';
           
           // Truncate long comments
           let body = item.entry || '';
@@ -1648,10 +1652,13 @@
             `<a href="${item.github_url}" target="_blank" style="color:var(--link);text-decoration:none;">#${item.pr_number}</a>` : 
             `#${item.pr_number}`;
           
+          const avatarUrl = `https://github.com/${item.author}.png?size=64`;
+          
           html += `
             <div class="activity-item">
-              <div class="activity-icon ${typeClass}">
-                ${icon(iconName, 16)}
+              <img src="${avatarUrl}" alt="${item.author}" class="activity-avatar" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+              <div class="activity-icon comment" style="display:none;">
+                ${icon('message-circle', 16)}
               </div>
               <div class="activity-body">
                 <div class="activity-main">
