@@ -2793,11 +2793,12 @@
       // Initialize context editor, then scroll to top
       setTimeout(() => {
         initDraftContextEditor();
-        // Scroll after editor init (which can affect scroll position)
-        requestAnimationFrame(() => {
-          detailView.scrollTop = 0;
-        });
       }, 50);
+      
+      // Force scroll to top after everything settles
+      setTimeout(() => {
+        detailView.scrollTo({ top: 0, behavior: 'instant' });
+      }, 100);
     }
     
     // Close draft detail view
