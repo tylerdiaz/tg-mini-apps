@@ -2787,12 +2787,17 @@
       
       const detailView = document.getElementById('draft-detail-view');
       detailView.classList.add('open');
-      detailView.scrollTop = 0;
       if (isTelegram) tg.BackButton.show();
       lucide.createIcons();
       
-      // Initialize context editor
-      setTimeout(() => initDraftContextEditor(), 50);
+      // Initialize context editor, then scroll to top
+      setTimeout(() => {
+        initDraftContextEditor();
+        // Scroll after editor init (which can affect scroll position)
+        requestAnimationFrame(() => {
+          detailView.scrollTop = 0;
+        });
+      }, 50);
     }
     
     // Close draft detail view
