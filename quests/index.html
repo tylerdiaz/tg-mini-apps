@@ -4753,7 +4753,9 @@
       
       // Filter
       let filtered = QUESTS.filter(q => {
-        // Hide archived/abandoned by default (unless explicitly filtering for them)
+        // Hide done/archived/abandoned by default (unless explicitly filtering for them)
+        // Done quests appear in "Recently Completed" section instead
+        if (q.status === 'done' && !filters.statuses.includes('done')) return false;
         if (q.status === 'archived' && !filters.statuses.includes('archived')) return false;
         if (q.status === 'abandoned' && !filters.statuses.includes('abandoned')) return false;
         if (filters.topics.length > 0 && !filters.topics.includes(q.topic)) return false;
@@ -4822,13 +4824,13 @@
         </div>`;
       });
       
-      // Add recently completed section (3 most recent done/archived)
+      // Add recently completed section (3 most recent done quests)
       const recentlyCompleted = QUESTS
-        .filter(q => q.status === 'done' || q.status === 'archived')
+        .filter(q => q.status === 'done')
         .sort((a, b) => (b.updated || '').localeCompare(a.updated || ''))
         .slice(0, 3);
       
-      if (recentlyCompleted.length > 0 && !filters.statuses.includes('done') && !filters.statuses.includes('archived')) {
+      if (recentlyCompleted.length > 0 && !filters.statuses.includes('done')) {
         html += `<div class="section-divider">Recently Completed</div>`;
         recentlyCompleted.forEach(q => {
           const cfg = statusConfig[q.status] || statusConfig.done;
