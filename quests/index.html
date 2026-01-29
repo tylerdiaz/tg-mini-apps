@@ -7,8 +7,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+  <!-- Tiptap Editor (loaded via esm.sh in script below) -->
   <style>
     :root {
       --bg: var(--tg-theme-bg-color, #1a1a1a);
@@ -248,87 +247,121 @@
       opacity: 1;
       color: #ef4444;
     }
-    .summary-textarea-inline {
-      width: 100%;
-      min-height: 240px;
-      padding: 0;
-      border: none;
+    /* Summary editor container */
+    #summary-editor {
+      min-height: 200px;
+    }
+    /* Tiptap Editor dark theme */
+    .tiptap-editor {
       background: transparent;
       color: var(--text);
+      min-height: 200px;
       font-size: 13px;
-      font-family: inherit;
-      line-height: 1.5;
-      resize: vertical;
+      line-height: 1.6;
     }
-    .summary-textarea-inline:focus {
-      outline: none;
+    .tiptap-editor .ProseMirror {
+      min-height: 150px;
+      outline: none !important;
     }
-    .summary-textarea-inline::placeholder {
+    .tiptap-editor .ProseMirror > * + * {
+      margin-top: 0.5em;
+    }
+    .tiptap-editor .ProseMirror p {
+      margin: 0;
+    }
+    .tiptap-editor .ProseMirror h1,
+    .tiptap-editor .ProseMirror h2,
+    .tiptap-editor .ProseMirror h3 {
+      color: var(--text);
+      margin: 1em 0 0.5em 0;
+      line-height: 1.3;
+    }
+    .tiptap-editor .ProseMirror h1 { font-size: 1.5em; }
+    .tiptap-editor .ProseMirror h2 { font-size: 1.3em; }
+    .tiptap-editor .ProseMirror h3 { font-size: 1.1em; }
+    .tiptap-editor .ProseMirror a {
+      color: var(--link);
+      text-decoration: underline;
+    }
+    .tiptap-editor .ProseMirror code {
+      background: rgba(255,255,255,0.1);
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    .tiptap-editor .ProseMirror pre {
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+    }
+    .tiptap-editor .ProseMirror pre code {
+      background: none;
+      padding: 0;
+    }
+    .tiptap-editor .ProseMirror ul,
+    .tiptap-editor .ProseMirror ol {
+      padding-left: 1.5em;
+    }
+    .tiptap-editor .ProseMirror li {
+      margin: 0.25em 0;
+    }
+    .tiptap-editor .ProseMirror blockquote {
+      border-left: 3px solid var(--hint);
+      padding-left: 1em;
+      margin-left: 0;
+      color: var(--hint);
+    }
+    .tiptap-editor .ProseMirror strong {
+      font-weight: 600;
+    }
+    .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      float: left;
       color: var(--hint);
       opacity: 0.6;
+      pointer-events: none;
+      height: 0;
     }
-    /* EasyMDE dark theme overrides */
-    .EasyMDEContainer {
-      background: transparent !important;
+    /* Bubble Menu (floating toolbar) */
+    .bubble-menu {
+      display: flex;
+      gap: 2px;
+      padding: 4px;
+      background: var(--secondary-bg);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
-    .EasyMDEContainer .CodeMirror {
-      background: transparent !important;
-      color: var(--text) !important;
-      border: none !important;
-      font-size: 13px !important;
-      min-height: 200px !important;
+    .bubble-menu button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--hint);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
     }
-    .EasyMDEContainer .CodeMirror-cursor {
-      border-color: var(--text) !important;
+    .bubble-menu button:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
     }
-    .EasyMDEContainer .CodeMirror-selected {
-      background: rgba(51, 144, 236, 0.3) !important;
+    .bubble-menu button.is-active {
+      background: rgba(51, 144, 236, 0.2);
+      color: var(--link);
     }
-    .EasyMDEContainer .cm-header {
-      color: var(--text) !important;
-    }
-    .EasyMDEContainer .cm-link, .EasyMDEContainer .cm-url {
-      color: var(--link) !important;
-    }
-    .EasyMDEContainer .cm-strong {
-      color: var(--text) !important;
-    }
-    .EasyMDEContainer .editor-toolbar {
-      background: var(--secondary-bg) !important;
-      border: none !important;
-      border-radius: 6px 6px 0 0 !important;
-      opacity: 1 !important;
-      padding: 4px !important;
-    }
-    .EasyMDEContainer .editor-toolbar button {
-      color: var(--hint) !important;
-      border: none !important;
-      background: transparent !important;
-    }
-    .EasyMDEContainer .editor-toolbar button:hover {
-      background: rgba(255,255,255,0.1) !important;
-      border-radius: 4px !important;
-    }
-    .EasyMDEContainer .editor-toolbar button.active {
-      background: rgba(51, 144, 236, 0.2) !important;
-      color: var(--link) !important;
-    }
-    .EasyMDEContainer .editor-toolbar i.separator {
-      border-color: var(--hint) !important;
-      opacity: 0.3 !important;
-    }
-    .EasyMDEContainer .editor-preview {
-      background: var(--bg) !important;
-      color: var(--text) !important;
-    }
-    .EasyMDEContainer .editor-preview pre {
-      background: rgba(255,255,255,0.05) !important;
-    }
-    .EasyMDEContainer .editor-statusbar {
-      display: none !important;
-    }
-    .EasyMDEContainer .CodeMirror-scroll {
-      min-height: 150px !important;
+    .bubble-menu .separator {
+      width: 1px;
+      background: rgba(255,255,255,0.15);
+      margin: 4px 2px;
     }
     .quest-pr-link {
       display: inline-flex;
@@ -2185,7 +2218,7 @@
                 Summary
                 <span id="save-indicator" class="save-indicator"></span>
               </div>
-              <textarea id="summary-textarea">${quest.context || ''}</textarea>
+              <div id="summary-editor"></div>
             </div>
             
             ${assetsHtml}
@@ -2229,7 +2262,7 @@
       
       // Clean up editor
       if (summaryEditor) {
-        summaryEditor.toTextArea();
+        summaryEditor.destroy();
         summaryEditor = null;
       }
       
@@ -2383,43 +2416,197 @@
     let lastSavedContext = '';
     let summaryEditor = null;
     let saveTimeout = null;
+    let tiptapLoaded = false;
+    let TiptapEditor, StarterKit, BubbleMenu, Placeholder, Link;
     
-    function initSummaryEditor() {
+    // Load Tiptap dynamically
+    async function loadTiptap() {
+      if (tiptapLoaded) return true;
+      try {
+        const [coreModule, starterKitModule, bubbleMenuModule, placeholderModule, linkModule] = await Promise.all([
+          import('https://esm.sh/@tiptap/core@2.11.5'),
+          import('https://esm.sh/@tiptap/starter-kit@2.11.5'),
+          import('https://esm.sh/@tiptap/extension-bubble-menu@2.11.5'),
+          import('https://esm.sh/@tiptap/extension-placeholder@2.11.5'),
+          import('https://esm.sh/@tiptap/extension-link@2.11.5')
+        ]);
+        TiptapEditor = coreModule.Editor;
+        StarterKit = starterKitModule.default;
+        BubbleMenu = bubbleMenuModule.BubbleMenu;
+        Placeholder = placeholderModule.Placeholder;
+        Link = linkModule.Link;
+        tiptapLoaded = true;
+        return true;
+      } catch (err) {
+        console.error('Failed to load Tiptap:', err);
+        return false;
+      }
+    }
+    
+    // Simple markdown to HTML converter
+    function markdownToHtml(md) {
+      if (!md) return '<p></p>';
+      return md
+        // Code blocks first
+        .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+        // Headers
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        // Bold/italic
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        // Inline code
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // Links
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+        // Lists (basic)
+        .replace(/^[-•] (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+        // Line breaks to paragraphs
+        .split(/\n\n+/)
+        .map(p => p.trim())
+        .filter(p => p && !p.startsWith('<h') && !p.startsWith('<ul') && !p.startsWith('<pre'))
+        .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    }
+    
+    // Simple HTML to markdown converter
+    function htmlToMarkdown(html) {
+      if (!html) return '';
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      
+      function convert(node) {
+        if (node.nodeType === 3) return node.textContent;
+        if (node.nodeType !== 1) return '';
+        
+        const tag = node.tagName.toLowerCase();
+        const children = Array.from(node.childNodes).map(convert).join('');
+        
+        switch (tag) {
+          case 'h1': return `# ${children}\n\n`;
+          case 'h2': return `## ${children}\n\n`;
+          case 'h3': return `### ${children}\n\n`;
+          case 'strong': case 'b': return `**${children}**`;
+          case 'em': case 'i': return `*${children}*`;
+          case 'code': return node.parentElement?.tagName === 'PRE' ? children : `\`${children}\``;
+          case 'pre': return `\`\`\`\n${children}\n\`\`\`\n\n`;
+          case 'a': return `[${children}](${node.href})`;
+          case 'ul': return children + '\n';
+          case 'ol': return children + '\n';
+          case 'li': return `• ${children}\n`;
+          case 'p': return children + '\n\n';
+          case 'br': return '\n';
+          case 'blockquote': return `> ${children}\n\n`;
+          default: return children;
+        }
+      }
+      
+      return convert(div).trim();
+    }
+    
+    async function initSummaryEditor() {
       // Destroy existing editor if any
       if (summaryEditor) {
-        summaryEditor.toTextArea();
+        summaryEditor.destroy();
         summaryEditor = null;
       }
       
-      const textarea = document.getElementById('summary-textarea');
-      if (!textarea) return;
+      const container = document.getElementById('summary-editor');
+      if (!container) return;
       
-      summaryEditor = new EasyMDE({
-        element: textarea,
-        spellChecker: false,
-        autofocus: false,
-        placeholder: 'Add context, notes, links...',
-        status: false,
-        toolbar: ['bold', 'italic', 'heading', '|', 'unordered-list', 'ordered-list', '|', 'link', 'code', '|', 'preview'],
-        previewClass: ['editor-preview', 'markdown-body'],
-        renderingConfig: {
-          singleLineBreaks: false,
-          codeSyntaxHighlighting: false
-        }
+      // Load Tiptap if not loaded
+      const loaded = await loadTiptap();
+      if (!loaded) {
+        container.innerHTML = '<div style="color:var(--hint);padding:12px;">Editor failed to load</div>';
+        return;
+      }
+      
+      // Create bubble menu element
+      let bubbleMenuEl = document.getElementById('bubble-menu');
+      if (!bubbleMenuEl) {
+        bubbleMenuEl = document.createElement('div');
+        bubbleMenuEl.id = 'bubble-menu';
+        bubbleMenuEl.className = 'bubble-menu';
+        bubbleMenuEl.innerHTML = `
+          <button data-action="bold" title="Bold"><b>B</b></button>
+          <button data-action="italic" title="Italic"><i>I</i></button>
+          <button data-action="code" title="Code">&lt;/&gt;</button>
+          <div class="separator"></div>
+          <button data-action="link" title="Link">🔗</button>
+          <button data-action="heading" title="Heading">H</button>
+        `;
+        document.body.appendChild(bubbleMenuEl);
+      }
+      
+      // Get initial content from currentQuest
+      const initialContent = currentQuest?.context ? markdownToHtml(currentQuest.context) : '<p></p>';
+      lastSavedContext = currentQuest?.context || '';
+      
+      summaryEditor = new TiptapEditor({
+        element: container,
+        extensions: [
+          StarterKit,
+          Placeholder.configure({
+            placeholder: 'Add context, notes, links...',
+          }),
+          Link.configure({
+            openOnClick: false,
+          }),
+          BubbleMenu.configure({
+            element: bubbleMenuEl,
+            shouldShow: ({ editor, state }) => {
+              const { from, to } = state.selection;
+              return from !== to && !state.selection.empty;
+            },
+          }),
+        ],
+        content: initialContent,
+        editorProps: {
+          attributes: {
+            class: 'tiptap-editor',
+          },
+        },
+        onUpdate: ({ editor }) => {
+          if (saveTimeout) clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(autoSaveSummary, 1000);
+        },
       });
       
-      // Auto-save on change with debounce
-      summaryEditor.codemirror.on('change', () => {
-        if (saveTimeout) clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(autoSaveSummary, 1000);
+      // Wire up bubble menu buttons
+      bubbleMenuEl.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const action = btn.dataset.action;
+          if (action === 'bold') summaryEditor.chain().focus().toggleBold().run();
+          if (action === 'italic') summaryEditor.chain().focus().toggleItalic().run();
+          if (action === 'code') summaryEditor.chain().focus().toggleCode().run();
+          if (action === 'heading') summaryEditor.chain().focus().toggleHeading({ level: 2 }).run();
+          if (action === 'link') {
+            const url = prompt('Enter URL:');
+            if (url) summaryEditor.chain().focus().setLink({ href: url }).run();
+          }
+          updateBubbleMenuState();
+        });
       });
+      
+      function updateBubbleMenuState() {
+        bubbleMenuEl.querySelector('[data-action="bold"]').classList.toggle('is-active', summaryEditor.isActive('bold'));
+        bubbleMenuEl.querySelector('[data-action="italic"]').classList.toggle('is-active', summaryEditor.isActive('italic'));
+        bubbleMenuEl.querySelector('[data-action="code"]').classList.toggle('is-active', summaryEditor.isActive('code'));
+        bubbleMenuEl.querySelector('[data-action="heading"]').classList.toggle('is-active', summaryEditor.isActive('heading'));
+        bubbleMenuEl.querySelector('[data-action="link"]').classList.toggle('is-active', summaryEditor.isActive('link'));
+      }
+      
+      summaryEditor.on('selectionUpdate', updateBubbleMenuState);
     }
     
     async function autoSaveSummary() {
       if (!currentQuest || !summaryEditor) return;
       
       const indicator = document.getElementById('save-indicator');
-      const newContext = summaryEditor.value();
+      const html = summaryEditor.getHTML();
+      const newContext = htmlToMarkdown(html);
       
       // Don't save if nothing changed
       if (newContext === lastSavedContext) return;
