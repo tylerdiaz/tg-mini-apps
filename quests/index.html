@@ -1276,8 +1276,36 @@
     }
     .lightbox img {
       max-width: 100%;
-      max-height: 100%;
+      max-height: calc(100% - 60px);
       object-fit: contain;
+    }
+    .lightbox-actions {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+    }
+    .lightbox-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+    .lightbox-btn:hover {
+      background: rgba(255,255,255,0.25);
+    }
+    .lightbox-btn svg {
+      width: 18px;
+      height: 18px;
     }
     
     /* Action Buttons */
@@ -1531,6 +1559,14 @@
   
   <div class="lightbox" id="lightbox" onclick="closeLightbox()">
     <img id="lightbox-img" src="" alt="">
+    <div class="lightbox-actions">
+      <button class="lightbox-btn" onclick="event.stopPropagation(); downloadLightboxImage()" title="Download">
+        <i data-lucide="download"></i> Download
+      </button>
+      <button class="lightbox-btn" onclick="closeLightbox()" title="Close">
+        <i data-lucide="x"></i> Close
+      </button>
+    </div>
   </div>
 
   <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
@@ -2848,7 +2884,7 @@
           
           if (isImage) {
             assetsHtml += `<div class="asset-item">
-              <img src="${assetUrl}" alt="${filename}" loading="lazy" onclick="openLightbox('${assetUrl}')">
+              <img src="${assetUrl}" alt="${filename}" loading="lazy" onclick="openLightbox('${assetUrl}', '${filename.replace(/'/g, "\\'")}')">
               <div class="asset-actions">
                 <button class="asset-action-btn" onclick="event.stopPropagation(); downloadAsset('${assetUrl}', '${filename}')" title="Download">
                   ${icon('download', 14)}
@@ -3125,14 +3161,26 @@
       }
     }
     
-    function openLightbox(src) {
+    let currentLightboxSrc = '';
+    let currentLightboxFilename = '';
+    
+    function openLightbox(src, filename) {
       event.stopPropagation();
+      currentLightboxSrc = src;
+      currentLightboxFilename = filename || src.split('/').pop() || 'image.jpg';
       document.getElementById("lightbox-img").src = src;
       document.getElementById("lightbox").classList.add("open");
+      lucide.createIcons();
     }
     
     function closeLightbox() {
       document.getElementById("lightbox").classList.remove("open");
+    }
+    
+    function downloadLightboxImage() {
+      if (currentLightboxSrc) {
+        downloadAsset(currentLightboxSrc, currentLightboxFilename);
+      }
     }
     
     async function downloadAsset(url, filename) {
