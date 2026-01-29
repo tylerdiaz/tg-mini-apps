@@ -530,7 +530,7 @@
     /* Detail View */
     .detail-view {
       position: fixed;
-      top: 0; right: 0; bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       width: 100%;
       background: var(--bg);
       padding: 12px;
@@ -539,6 +539,8 @@
       transform: translateX(100%);
       transition: transform 150ms ease-in-out;
       will-change: transform;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
     }
     .detail-view.open {
       transform: translateX(0);
@@ -2885,20 +2887,25 @@
     }
 
     function closeDetail() {
-      document.getElementById("detail-view").classList.remove("open");
+      const detailView = document.getElementById("detail-view");
+      detailView.classList.remove("open");
       if (isTelegram) tg.BackButton.hide();
       currentQuest = null;
-      
-      // Clean up editor
-      if (summaryEditor) {
-        summaryEditor.toTextArea();
-        summaryEditor = null;
-      }
       
       // Clear URL param in browser mode
       if (!isTelegram) {
         history.pushState({}, '', window.location.pathname);
       }
+      
+      // Clean up editor AFTER transition completes (150ms + buffer)
+      setTimeout(() => {
+        if (summaryEditor) {
+          summaryEditor.toTextArea();
+          summaryEditor = null;
+        }
+        // Clear content to free memory
+        document.getElementById("detail-content").innerHTML = '';
+      }, 180);
     }
     
     // Handle browser back/forward
