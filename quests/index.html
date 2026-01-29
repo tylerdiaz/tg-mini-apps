@@ -1663,8 +1663,12 @@
         const date = new Date(timestamp);
         const now = new Date();
         const diffMs = now - date;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         
+        if (diffHours < 1) return 'Just now';
+        if (diffHours === 1) return '1 hour ago';
+        if (diffHours < 6) return `${diffHours} hours ago`;
         if (diffDays === 0) return 'Today';
         if (diffDays === 1) return 'Yesterday';
         if (diffDays < 7) return 'This Week';
