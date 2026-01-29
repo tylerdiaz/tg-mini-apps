@@ -265,27 +265,34 @@
     .detail-status.done { background: #10b98122; color: #10b981; }
     .detail-status.archived { background: #6b728022; color: #6b7280; }
     
-    /* Drop zone */
-    .drop-zone {
-      border: 2px dashed var(--hint);
-      border-radius: 8px;
-      padding: 20px;
-      text-align: center;
-      color: var(--hint);
-      font-size: 13px;
-      margin: 12px 0;
-      transition: all 150ms ease-in-out;
-      display: none;
-    }
-    body:not(.tg-webapp) .drop-zone { display: block; }
-    .drop-zone.dragover {
-      border-color: var(--btn);
-      background: rgba(51, 144, 236, 0.1);
-      color: var(--btn);
-    }
-    .drop-zone.uploading {
-      opacity: 0.6;
+    /* Full-page drop overlay */
+    .drop-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(51, 144, 236, 0.15);
+      border: 4px dashed var(--btn);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
       pointer-events: none;
+      transition: opacity 150ms ease-in-out;
+    }
+    .drop-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .drop-overlay-text {
+      background: var(--bg);
+      color: var(--btn);
+      padding: 20px 40px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .drop-overlay.uploading .drop-overlay-text {
+      opacity: 0.6;
     }
     .section-header {
       font-size: 12px;
@@ -535,6 +542,9 @@
 <body>
   <div class="toast" id="toast"></div>
   <div class="mode-badge" id="mode-badge"></div>
+  <div class="drop-overlay" id="drop-overlay">
+    <div class="drop-overlay-text">📎 Drop to attach</div>
+  </div>
   <div id="list-view">
     <div class="header">
       <input type="text" class="search" id="search" placeholder="Search quests...">
@@ -1092,10 +1102,6 @@
         <div class="section-header">Log</div>
         ${logHtml || '<p class="context-text" style="opacity:0.5">No log entries yet</p>'}
         
-        <div class="drop-zone" id="drop-zone">
-          📎 Drop files here to attach
-        </div>
-        
         <div class="action-bar">
           <button class="action-btn secondary" onclick="archiveQuest()">📦 Archive</button>
           <button class="action-btn primary" onclick="markDone()">✅ Done</button>
@@ -1104,9 +1110,6 @@
       
       document.getElementById("detail-view").classList.add("open");
       if (isTelegram) tg.BackButton.show();
-      
-      // Setup drop zone for browser mode
-      if (!isTelegram) setupDropZone();
     }
 
     function closeDetail() {
@@ -1178,40 +1181,55 @@
       }
     }
     
-    // Drag-drop file upload (browser mode only)
-    function setupDropZone() {
-      const dropZone = document.getElementById('drop-zone');
-      if (!dropZone) return;
+    // Full-page drag-drop file upload (browser mode only)
+    function setupGlobalDropZone() {
+      if (isTelegram) return;
       
-      ['dragenter', 'dragover'].forEach(e => {
-        dropZone.addEventListener(e, (ev) => {
-          ev.preventDefault();
-          dropZone.classList.add('dragover');
-        });
-      });
+      const overlay = document.getElementById('drop-overlay');
+      let dragCounter = 0;
       
-      ['dragleave', 'drop'].forEach(e => {
-        dropZone.addEventListener(e, () => {
-          dropZone.classList.remove('dragover');
-        });
-      });
-      
-      dropZone.addEventListener('drop', async (ev) => {
+      document.addEventListener('dragenter', (ev) => {
         ev.preventDefault();
-        if (!currentQuest || isTelegram) return;
+        dragCounter++;
+        if (currentQuest) {
+          overlay.classList.add('visible');
+        }
+      });
+      
+      document.addEventListener('dragleave', (ev) => {
+        ev.preventDefault();
+        dragCounter--;
+        if (dragCounter === 0) {
+          overlay.classList.remove('visible');
+        }
+      });
+      
+      document.addEventListener('dragover', (ev) => {
+        ev.preventDefault();
+      });
+      
+      document.addEventListener('drop', async (ev) => {
+        ev.preventDefault();
+        dragCounter = 0;
+        overlay.classList.remove('visible');
+        
+        if (!currentQuest) {
+          showToast('Open a quest first to attach files');
+          return;
+        }
         
         const files = ev.dataTransfer.files;
         if (!files.length) return;
         
-        dropZone.classList.add('uploading');
-        dropZone.textContent = '⏳ Uploading...';
+        overlay.classList.add('uploading');
+        overlay.querySelector('.drop-overlay-text').textContent = '⏳ Uploading...';
         
         for (const file of files) {
           await uploadFile(file);
         }
         
-        dropZone.classList.remove('uploading');
-        dropZone.textContent = '📎 Drop files here to attach';
+        overlay.classList.remove('uploading');
+        overlay.querySelector('.drop-overlay-text').textContent = '📎 Drop to attach';
       });
     }
     
@@ -1282,6 +1300,7 @@
     // Initial load from Supabase + real-time subscription
     loadQuests();
     subscribeToChanges();
+    setupGlobalDropZone();
   </script>
 </body>
 </html>
