@@ -1222,14 +1222,15 @@
         if (!files.length) return;
         
         overlay.classList.add('uploading');
-        overlay.querySelector('.drop-overlay-text').textContent = '⏳ Uploading...';
+        const overlayText = overlay.querySelector('.drop-overlay-text');
         
         for (const file of files) {
+          overlayText.textContent = `⏳ Uploading ${file.name}...`;
           await uploadFile(file);
         }
         
         overlay.classList.remove('uploading');
-        overlay.querySelector('.drop-overlay-text').textContent = '📎 Drop to attach';
+        overlayText.textContent = '📎 Drop to attach';
       });
     }
     
@@ -1268,6 +1269,12 @@
       }
       
       showToast(`✓ Uploaded ${file.name}`);
+      
+      // Reload quest data and re-render detail view
+      await loadQuests();
+      if (currentQuest) {
+        openQuest(currentQuest.id);
+      }
     }
 
     // Event listeners
