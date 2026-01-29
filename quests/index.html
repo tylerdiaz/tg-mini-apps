@@ -206,15 +206,20 @@
 
     /* Detail View */
     .detail-view {
-      display: none;
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
+      top: 0; right: 0; bottom: 0;
+      width: 100%;
       background: var(--bg);
       padding: 12px;
       overflow-y: auto;
       z-index: 100;
+      transform: translateX(100%);
+      transition: transform 0.25s ease-out;
+      will-change: transform;
     }
-    .detail-view.open { display: block; }
+    .detail-view.open {
+      transform: translateX(0);
+    }
     .back-btn {
       background: none;
       border: none;
@@ -311,15 +316,23 @@
     
     /* Lightbox */
     .lightbox {
-      display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.95);
       z-index: 200;
       padding: 40px 12px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease-out;
     }
-    .lightbox.open { display: flex; align-items: center; justify-content: center; }
+    .lightbox.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
     .lightbox img {
       max-width: 100%;
       max-height: 100%;
@@ -353,15 +366,19 @@
 
     /* Bottom Sheet */
     .sheet-backdrop {
-      display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.5);
       z-index: 140;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease-out;
     }
-    .sheet-backdrop.open { display: block; }
+    .sheet-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
     .bottom-sheet {
-      display: none;
       position: fixed;
       bottom: 0;
       left: 0;
@@ -373,8 +390,13 @@
       z-index: 150;
       max-height: 70vh;
       overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 0.25s ease-out;
+      will-change: transform;
     }
-    .bottom-sheet.open { display: block; }
+    .bottom-sheet.open {
+      transform: translateY(0);
+    }
     .sheet-handle {
       width: 36px;
       height: 4px;
