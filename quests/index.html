@@ -221,6 +221,11 @@
       transform: translateX(0);
     }
     .back-btn {
+      display: none; /* Hidden - Telegram handles back navigation */
+    }
+    /* Show fallback for non-Telegram browsers */
+    body:not(.tg-webapp) .back-btn {
+      display: block;
       background: none;
       border: none;
       color: var(--link);
@@ -517,7 +522,11 @@
 
   <script>
     const tg = window.Telegram?.WebApp;
-    if (tg) { tg.ready(); tg.expand(); }
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      document.body.classList.add('tg-webapp');
+    }
 
     // Quest data - synced by sync.js
     const QUESTS = [
