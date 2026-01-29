@@ -2460,6 +2460,18 @@
         if (saveTimeout) clearTimeout(saveTimeout);
         saveTimeout = setTimeout(autoSaveSummary, 1000);
       });
+      
+      // Force hide tokens on blur by moving cursor to end
+      summaryEditor.on('blur', () => {
+        // Small delay to let blur complete, then reset cursor to trigger token hiding
+        setTimeout(() => {
+          if (summaryEditor && !summaryEditor.hasFocus()) {
+            const lastLine = summaryEditor.lastLine();
+            const lastCh = summaryEditor.getLine(lastLine)?.length || 0;
+            summaryEditor.setCursor(lastLine, lastCh);
+          }
+        }, 10);
+      });
     }
     
     async function autoSaveSummary() {
