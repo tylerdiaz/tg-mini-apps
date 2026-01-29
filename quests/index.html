@@ -620,11 +620,24 @@
         .select('*')
         .order('logged_at', { ascending: false });
       
+      const { data: assets } = await db
+        .from('quest_assets')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
       questLogs = {};
       if (logs) {
         logs.forEach(log => {
           if (!questLogs[log.quest_id]) questLogs[log.quest_id] = [];
           questLogs[log.quest_id].push(log);
+        });
+      }
+      
+      const questAssets = {};
+      if (assets) {
+        assets.forEach(asset => {
+          if (!questAssets[asset.quest_id]) questAssets[asset.quest_id] = [];
+          questAssets[asset.quest_id].push(asset);
         });
       }
       
@@ -639,7 +652,7 @@
         created: q.created_at?.split('T')[0],
         updated: q.updated_at?.split('T')[0],
         log: questLogs[q.id] || [],
-        assets: []
+        assets: questAssets[q.id] || []
       }));
       
       renderFilterBar();
@@ -651,11 +664,11 @@
         .channel('quests-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quests' }, () => loadQuests())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_logs' }, () => loadQuests())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quest_assets' }, () => loadQuests())
         .subscribe();
     }
 
-    // Legacy embedded data removed - now loading from Supabase
-    const ASSETS_BASE = 'https://raw.githubusercontent.com/tylerdiaz/clawd-spectrum/main/quests/';
+    // Assets now loaded from Supabase Storage
     
     const statusConfig = {
       investigating: { emoji: '🔍', label: 'Investigating' },
@@ -686,7 +699,22 @@
       priority: 'Priority'
     };
     
-    const fileIcons = { image: "🖼️", audio: "🎵", pdf: "📄", file: "📎" };
+    const fileIcons = { image: "🖼️", audio: "🎵", pdf: "📄", csv: "📊", json: "📋", code: "💻", text: "📝", file: "📎" };
+    
+    function getFileType(mimeType, filename) {
+      if (!mimeType) mimeType = '';
+      if (!filename) filename = '';
+      const ext = filename.split('.').pop()?.toLowerCase();
+      
+      if (mimeType.startsWith('image/')) return 'image';
+      if (mimeType.startsWith('audio/')) return 'audio';
+      if (mimeType === 'application/pdf') return 'pdf';
+      if (mimeType === 'text/csv' || ext === 'csv') return 'csv';
+      if (mimeType === 'application/json' || ext === 'json') return 'json';
+      if (['js', 'ts', 'py', 'go', 'sh', 'sql', 'html', 'css', 'vue'].includes(ext)) return 'code';
+      if (mimeType.startsWith('text/') || ['md', 'txt', 'log'].includes(ext)) return 'text';
+      return 'file';
+    }
     
     // Filter state
     let filters = {
@@ -1005,17 +1033,21 @@
 
       let assetsHtml = "";
       if (quest.assets && quest.assets.length > 0) {
-        assetsHtml = `<div class="section-header">Attachments</div><div class="assets-grid">`;
+        assetsHtml = `<div class="section-header">Attachments (${quest.assets.length})</div><div class="assets-grid">`;
         quest.assets.forEach(asset => {
-          if (asset.type === 'image') {
-            assetsHtml += `<div class="asset-item" onclick="openLightbox('${ASSETS_BASE}${asset.path}')">
-              <img src="${ASSETS_BASE}${asset.path}" alt="${asset.name}" loading="lazy">
+          const assetUrl = `${SUPABASE_URL}/storage/v1/object/public/quest-assets/${asset.storage_path}`;
+          const isImage = asset.mime_type?.startsWith('image/');
+          const fileType = getFileType(asset.mime_type, asset.filename);
+          
+          if (isImage) {
+            assetsHtml += `<div class="asset-item" onclick="openLightbox('${assetUrl}')">
+              <img src="${assetUrl}" alt="${asset.filename}" loading="lazy">
             </div>`;
           } else {
-            assetsHtml += `<div class="asset-item">
+            assetsHtml += `<div class="asset-item" onclick="window.open('${assetUrl}', '_blank')">
               <div class="file-icon">
-                <span class="icon">${fileIcons[asset.type]}</span>
-                <span class="name">${asset.name}</span>
+                <span class="icon">${fileIcons[fileType] || '📎'}</span>
+                <span class="name">${asset.filename}</span>
               </div>
             </div>`;
           }
