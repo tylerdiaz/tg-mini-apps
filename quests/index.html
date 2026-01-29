@@ -1023,6 +1023,55 @@
       margin-bottom: 12px;
       padding-left: 4px;
     }
+    .suggestions-section {
+      background: rgba(251, 191, 36, 0.05);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 16px;
+    }
+    .suggestions-section .sidebar-section-title {
+      color: #fbbf24;
+      margin-bottom: 10px;
+    }
+    .suggestions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .suggestion-item {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text);
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 6px;
+      border-left: 2px solid transparent;
+    }
+    .suggestion-item.urgent {
+      border-left-color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .suggestion-item.action {
+      border-left-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.08);
+    }
+    .suggestion-item.positive {
+      border-left-color: #22c55e;
+      background: rgba(34, 197, 94, 0.08);
+    }
+    .suggestion-item.info {
+      border-left-color: var(--hint);
+    }
+    .suggestion-icon {
+      flex-shrink: 0;
+      width: 18px;
+      text-align: center;
+    }
+    .suggestion-text {
+      flex: 1;
+    }
     
     @media (min-width: 768px) {
       .detail-view {
@@ -4035,6 +4084,129 @@
       return `${Math.floor(diffDays / 30)} months ago`;
     }
     
+    // Generate contextual suggestions for a quest
+    // Assumes autonomous progress - minimize coordination overhead
+    function generateQuestSuggestions(quest) {
+      const suggestions = [];
+      const context = (quest.context || '').toLowerCase();
+      const status = quest.status;
+      const prs = quest.prs || [];
+      const prState = quest.pr_state;
+      const prActivity = quest.pr_activity || [];
+      
+      // Check for phased work
+      const phaseMatch = context.match(/phase\s*(\d+)/i);
+      const currentPhase = phaseMatch ? parseInt(phaseMatch[1]) : null;
+      
+      // Check for recent PR comments needing response
+      const recentComments = prActivity.filter(a => {
+        const age = Date.now() - new Date(a.created_at).getTime();
+        return age < 48 * 60 * 60 * 1000; // Last 48 hours
+      });
+      const hasUnaddressedComments = recentComments.some(c => 
+        c.state === 'CHANGES_REQUESTED' || 
+        (c.activity_type === 'review' && c.state !== 'APPROVED')
+      );
+      
+      // Status-based suggestions
+      if (status === 'blocked') {
+        if (context.includes('discussion') || context.includes('clarify') || context.includes('waiting')) {
+          suggestions.push({
+            icon: '⚡',
+            text: 'Can you unblock yourself? Check if there\'s a path forward without waiting.',
+            type: 'action'
+          });
+        }
+        if (context.includes('team') || context.includes('dylan') || context.includes('kai')) {
+          suggestions.push({
+            icon: '📝',
+            text: 'Document your proposed approach — async alignment beats sync meetings.',
+            type: 'action'
+          });
+        }
+      }
+      
+      // PR-based suggestions
+      if (prState === 'OPEN') {
+        if (hasUnaddressedComments) {
+          suggestions.push({
+            icon: '💬',
+            text: 'PR has review feedback — address comments to unblock merge.',
+            type: 'urgent'
+          });
+        } else if (prs.length > 0 || quest.pr_number) {
+          const prAge = quest.pr_created_at ? 
+            Math.floor((Date.now() - new Date(quest.pr_created_at).getTime()) / (1000 * 60 * 60)) : 0;
+          if (prAge > 48 && !hasUnaddressedComments) {
+            suggestions.push({
+              icon: '👀',
+              text: 'PR open >48h with no blockers — ping for review or self-merge if approved.',
+              type: 'action'
+            });
+          }
+        }
+      }
+      
+      // Phase-based suggestions
+      if (currentPhase && context.includes('✅')) {
+        const nextPhase = currentPhase + 1;
+        if (context.includes(`phase ${nextPhase}`) || context.includes(`phase${nextPhase}`)) {
+          suggestions.push({
+            icon: '🚀',
+            text: `Phase ${currentPhase} done — start Phase ${nextPhase} independently.`,
+            type: 'action'
+          });
+        }
+      }
+      
+      // Measurement suggestions
+      if (context.includes('measure') || context.includes('metric') || context.includes('log entries')) {
+        if (!context.includes('baseline') && !context.includes('data')) {
+          suggestions.push({
+            icon: '📊',
+            text: 'Set up measurement before shipping — harder to add later.',
+            type: 'info'
+          });
+        }
+      }
+      
+      // Experiment suggestions
+      if (context.includes('experiment') || context.includes('hypothesis')) {
+        if (context.includes('day 7') || context.includes('day 14')) {
+          suggestions.push({
+            icon: '📅',
+            text: 'Check experiment timeline — is a read or decision due?',
+            type: 'info'
+          });
+        }
+      }
+      
+      // Active quest with no recent activity
+      if (status === 'active') {
+        const lastActivity = quest.updated_at || quest.created_at;
+        const daysSinceUpdate = lastActivity ? 
+          Math.floor((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+        if (daysSinceUpdate > 3 && suggestions.length === 0) {
+          suggestions.push({
+            icon: '🎯',
+            text: 'Stale >3 days — what\'s the next concrete action?',
+            type: 'info'
+          });
+        }
+      }
+      
+      // Fallback for empty suggestions
+      if (suggestions.length === 0 && status === 'active') {
+        suggestions.push({
+          icon: '✨',
+          text: 'On track. Keep shipping.',
+          type: 'positive'
+        });
+      }
+      
+      return suggestions.slice(0, 3); // Max 3 suggestions
+    }
+    
     // Parse log entry and detect activity type
     function parseActivity(entry, timestamp) {
       const result = {
@@ -4658,6 +4830,22 @@
           sidebarHtml += `<div class="sidebar-section">
             <div class="sidebar-section-title">${icon('book-open', 12)} Related Notes</div>
             ${notesHtml}
+          </div>`;
+        }
+        
+        // Generate contextual suggestions
+        const suggestions = generateQuestSuggestions(quest);
+        if (suggestions.length > 0) {
+          sidebarHtml += `<div class="sidebar-section suggestions-section">
+            <div class="sidebar-section-title">${icon('lightbulb', 12)} Suggestions</div>
+            <div class="suggestions-list">
+              ${suggestions.map(s => `
+                <div class="suggestion-item ${s.type || ''}">
+                  <span class="suggestion-icon">${s.icon || '→'}</span>
+                  <span class="suggestion-text">${s.text}</span>
+                </div>
+              `).join('')}
+            </div>
           </div>`;
         }
         sidebarHtml += '</div>';
