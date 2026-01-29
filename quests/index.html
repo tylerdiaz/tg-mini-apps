@@ -6,6 +6,7 @@
   <title>Navigator</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
     :root {
       --bg: var(--tg-theme-bg-color, #1a1a1a);
@@ -589,7 +590,7 @@
   <div class="toast" id="toast"></div>
   <div class="mode-badge" id="mode-badge"></div>
   <div class="drop-overlay" id="drop-overlay">
-    <div class="drop-overlay-text">📎 Drop to attach</div>
+    <div class="drop-overlay-text"><i data-lucide="paperclip" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:8px;"></i> Drop to attach</div>
   </div>
   <div id="list-view">
     <div class="header">
@@ -751,19 +752,23 @@
     // Assets now loaded from Supabase Storage
     
     const statusConfig = {
-      investigating: { emoji: '🔍', label: 'Investigating' },
-      ready: { emoji: '🟢', label: 'Ready' },
-      active: { emoji: '🔵', label: 'Active' },
-      blocked: { emoji: '🟡', label: 'Blocked' },
-      done: { emoji: '✅', label: 'Done' },
-      archived: { emoji: '📦', label: 'Archived' }
+      investigating: { icon: 'search', color: '#8b5cf6', label: 'Investigating' },
+      ready: { icon: 'circle-check', color: '#22c55e', label: 'Ready' },
+      active: { icon: 'play-circle', color: '#3b82f6', label: 'Active' },
+      blocked: { icon: 'pause-circle', color: '#eab308', label: 'Blocked' },
+      done: { icon: 'check-circle-2', color: '#10b981', label: 'Done' },
+      archived: { icon: 'archive', color: '#6b7280', label: 'Archived' }
     };
     
+    function icon(name, size = 16, color = 'currentColor') {
+      return `<i data-lucide="${name}" style="width:${size}px;height:${size}px;color:${color};display:inline-block;vertical-align:middle;"></i>`;
+    }
+    
     const topicConfig = {
-      dev: { emoji: '💻', label: 'dev' },
-      growth: { emoji: '📈', label: 'growth' },
-      ux: { emoji: '🎨', label: 'ux' },
-      ops: { emoji: '⚙️', label: 'ops' }
+      dev: { icon: 'code-2', label: 'dev' },
+      growth: { icon: 'trending-up', label: 'growth' },
+      ux: { icon: 'palette', label: 'ux' },
+      ops: { icon: 'settings', label: 'ops' }
     };
 
     const timeConfig = {
@@ -780,24 +785,21 @@
       priority: 'Priority'
     };
     
-    const fileIcons = { image: "🖼️", audio: "🎵", pdf: "📄", csv: "📊", json: "📋", code: "💻", text: "📝", file: "📎" };
+    const fileIcons = { 
+      image: 'image', 
+      audio: 'music', 
+      pdf: 'file-text', 
+      csv: 'table', 
+      json: 'braces', 
+      code: 'file-code', 
+      text: 'file-text', 
+      file: 'paperclip' 
+    };
     
     function generateSummary(quest) {
       const status = quest.status || 'active';
       const context = quest.context || '';
       const lastLog = quest.log?.[0]?.entry || quest.log?.[0]?.entries?.[0] || '';
-      
-      // Status-based framing
-      let statusPhrase = '';
-      switch (status) {
-        case 'investigating': statusPhrase = '🔍 <strong>Investigating:</strong> '; break;
-        case 'ready': statusPhrase = '🟢 <strong>Ready to start:</strong> '; break;
-        case 'active': statusPhrase = '🔵 <strong>In progress:</strong> '; break;
-        case 'blocked': statusPhrase = '🟡 <strong>Blocked:</strong> '; break;
-        case 'done': statusPhrase = '✅ <strong>Completed:</strong> '; break;
-        case 'archived': statusPhrase = '📦 <strong>Archived:</strong> '; break;
-        default: statusPhrase = '';
-      }
       
       // Build summary from context (truncate if long)
       let aboutText = context.length > 200 ? context.slice(0, 200) + '...' : context;
@@ -806,10 +808,10 @@
       // What's next from last log
       let nextText = '';
       if (lastLog && status !== 'done' && status !== 'archived') {
-        nextText = `<br><br>📌 <strong>Latest:</strong> ${lastLog.slice(0, 100)}${lastLog.length > 100 ? '...' : ''}`;
+        nextText = `<br><br><span style="opacity:0.7">${icon('pin', 12)} <strong>Latest:</strong> ${lastLog.slice(0, 100)}${lastLog.length > 100 ? '...' : ''}</span>`;
       }
       
-      return statusPhrase + aboutText + nextText;
+      return aboutText + nextText;
     }
     
     function getFileType(mimeType, filename) {
@@ -881,31 +883,31 @@
         const cfg = statusConfig[status];
         const isActive = filters.statuses.includes(status);
         html += `<button class="quick-filter ${isActive ? 'active' : ''}" onclick="toggleQuickFilter('${status}')">
-          ${cfg.emoji} ${cfg.label}
+          ${icon(cfg.icon, 14, cfg.color)} ${cfg.label}
         </button>`;
       });
 
       // Show active non-quick filters as chips
       // Topic chips
       filters.topics.forEach(t => {
-        const cfg = topicConfig[t] || { emoji: '📁', label: t };
+        const cfg = topicConfig[t] || { icon: 'folder', label: t };
         html += `<button class="filter-chip" onclick="removeFilter('topic', '${t}')">
-          ${cfg.emoji} ${cfg.label} <span class="remove">×</span>
+          ${icon(cfg.icon, 12)} ${cfg.label} <span class="remove">×</span>
         </button>`;
       });
 
       // Non-quick status chips (investigating, ready)
       filters.statuses.filter(s => !quickFilters.includes(s)).forEach(s => {
-        const cfg = statusConfig[s] || { emoji: '⚪', label: s };
+        const cfg = statusConfig[s] || { icon: 'circle', label: s };
         html += `<button class="filter-chip" onclick="removeFilter('status', '${s}')">
-          ${cfg.emoji} ${cfg.label} <span class="remove">×</span>
+          ${icon(cfg.icon, 12, cfg.color)} ${cfg.label} <span class="remove">×</span>
         </button>`;
       });
 
       // Time chip
       if (filters.timeHours > 0) {
         html += `<button class="filter-chip" onclick="removeFilter('time', ${filters.timeHours})">
-          🕐 ${timeConfig[filters.timeHours]} <span class="remove">×</span>
+          ${icon('clock', 12)} ${timeConfig[filters.timeHours]} <span class="remove">×</span>
         </button>`;
       }
 
@@ -918,6 +920,7 @@
       }
 
       bar.innerHTML = html;
+      lucide.createIcons();
     }
 
     function toggleQuickFilter(status) {
@@ -939,7 +942,7 @@
       Object.entries(topicConfig).forEach(([key, cfg]) => {
         const selected = filters.topics.includes(key) ? 'selected' : '';
         topicHtml += `<button class="sheet-option ${selected}" data-type="topic" data-value="${key}">
-          ${cfg.emoji} ${cfg.label}
+          ${icon(cfg.icon, 14)} ${cfg.label}
         </button>`;
       });
       topicContainer.innerHTML = topicHtml;
@@ -950,7 +953,7 @@
       Object.entries(statusConfig).forEach(([key, cfg]) => {
         const selected = filters.statuses.includes(key) ? 'selected' : '';
         statusHtml += `<button class="sheet-option ${selected}" data-type="status" data-value="${key}">
-          ${cfg.emoji} ${cfg.label}
+          ${icon(cfg.icon, 14, cfg.color)} ${cfg.label}
         </button>`;
       });
       statusContainer.innerHTML = statusHtml;
@@ -975,6 +978,8 @@
           btn.classList.toggle('selected');
         });
       });
+      
+      lucide.createIcons();
     }
 
     function renderSortSheet() {
@@ -1097,16 +1102,16 @@
       let html = "";
       filtered.forEach(q => {
         const cfg = statusConfig[q.status] || statusConfig.active;
-        const topicCfg = topicConfig[q.topic] || { emoji: '📁', label: q.topic };
+        const topicCfg = topicConfig[q.topic] || { icon: 'folder', label: q.topic };
         html += `<div class="quest-card" onclick="openQuest('${q.id}')">
-          <span class="quest-status-icon">${cfg.emoji}</span>
+          <span class="quest-status-icon">${icon(cfg.icon, 18, cfg.color)}</span>
           <div class="quest-content">
             <div class="quest-title">
               <span class="quest-title-text">${q.title}</span>
             </div>
             <div class="quest-meta">
-              <span class="quest-topic">${topicCfg.emoji} ${q.topic}</span>
-              ${q.collaborator ? `<span>w/ ${q.collaborator}</span>` : ''}
+              <span class="quest-topic">${icon(topicCfg.icon, 12)} ${topicCfg.label}</span>
+              ${q.collaborator ? `<span>${icon('users', 12)} ${q.collaborator}</span>` : ''}
               <span class="quest-time">${timeAgo(q.updated)}</span>
             </div>
           </div>
@@ -1123,15 +1128,15 @@
         html += `<div class="section-divider">Recently Completed</div>`;
         recentlyCompleted.forEach(q => {
           const cfg = statusConfig[q.status] || statusConfig.done;
-          const topicCfg = topicConfig[q.topic] || { emoji: '📁', label: q.topic };
+          const topicCfg = topicConfig[q.topic] || { icon: 'folder', label: q.topic };
           html += `<div class="quest-card completed" onclick="openQuest('${q.id}')">
-            <span class="quest-status-icon">${cfg.emoji}</span>
+            <span class="quest-status-icon">${icon(cfg.icon, 18, cfg.color)}</span>
             <div class="quest-content">
               <div class="quest-title">
                 <span class="quest-title-text">${q.title}</span>
               </div>
               <div class="quest-meta">
-                <span class="quest-topic">${topicCfg.emoji} ${q.topic}</span>
+                <span class="quest-topic">${icon(topicCfg.icon, 12)} ${topicCfg.label}</span>
                 <span class="quest-time">${timeAgo(q.updated)}</span>
               </div>
             </div>
@@ -1140,6 +1145,7 @@
       }
       
       container.innerHTML = html;
+      lucide.createIcons();
     }
 
     function openQuest(id) {
@@ -1183,7 +1189,7 @@
           } else {
             assetsHtml += `<div class="asset-item" onclick="window.open('${assetUrl}', '_blank')">
               <div class="file-icon">
-                <span class="icon">${fileIcons[fileType] || '📎'}</span>
+                <span class="icon">${icon(fileIcons[fileType] || 'paperclip', 24)}</span>
                 <span class="name">${filename}</span>
               </div>
             </div>`;
@@ -1192,7 +1198,7 @@
         assetsHtml += "</div>";
       }
 
-      const topicCfg = topicConfig[quest.topic] || { emoji: '📁', label: quest.topic };
+      const topicCfg = topicConfig[quest.topic] || { icon: 'folder', label: quest.topic };
       
       // Generate smart summary
       const summary = generateSummary(quest);
@@ -1203,16 +1209,16 @@
       
       document.getElementById("detail-content").innerHTML = `
         <div class="detail-title">
-          <span class="quest-topic" style="margin-right: 8px;">${topicCfg.emoji} ${topicCfg.label}</span>
+          <span class="quest-topic" style="margin-right: 8px;">${icon(topicCfg.icon, 16)} ${topicCfg.label}</span>
           ${quest.title}
         </div>
-        <span class="detail-status ${quest.status}">${cfg.emoji} ${cfg.label}</span>
-        ${quest.collaborator ? `<span class="detail-status" style="margin-left: 8px; background: var(--secondary-bg); color: var(--text);">w/ ${quest.collaborator}</span>` : ""}
+        <span class="detail-status ${quest.status}">${icon(cfg.icon, 14, cfg.color)} ${cfg.label}</span>
+        ${quest.collaborator ? `<span class="detail-status" style="margin-left: 8px; background: var(--secondary-bg); color: var(--text);">${icon('users', 12)} ${quest.collaborator}</span>` : ""}
         
         <div class="quest-summary">
           <div class="quest-summary-label">Summary</div>
           ${summary}
-          ${prLink ? `<a href="${prLink}" target="_blank" class="quest-pr-link">🔗 View PR</a>` : ''}
+          ${prLink ? `<a href="${prLink}" target="_blank" class="quest-pr-link">${icon('git-pull-request', 14)} View PR</a>` : ''}
         </div>
         
         ${assetsHtml}
@@ -1221,13 +1227,14 @@
         ${logHtml || '<p class="context-text" style="opacity:0.5">No log entries yet</p>'}
         
         <div class="action-bar">
-          <button class="action-btn secondary" onclick="archiveQuest()">📦 Archive</button>
-          <button class="action-btn primary" onclick="markDone()">✅ Done</button>
+          <button class="action-btn secondary" onclick="archiveQuest()">${icon('archive', 16)} Archive</button>
+          <button class="action-btn primary" onclick="markDone()">${icon('check-circle-2', 16)} Done</button>
         </div>
       `;
       
       document.getElementById("detail-view").classList.add("open");
       if (isTelegram) tg.BackButton.show();
+      lucide.createIcons();
     }
 
     function closeDetail() {
@@ -1348,7 +1355,8 @@
         }
         
         overlay.classList.remove('uploading');
-        overlayText.textContent = '📎 Drop to attach';
+        overlayText.innerHTML = `${icon('paperclip', 20)} Drop to attach`;
+        lucide.createIcons();
       });
     }
     
@@ -1426,6 +1434,7 @@
     loadQuests();
     subscribeToChanges();
     setupGlobalDropZone();
+    lucide.createIcons();
   </script>
 </body>
 </html>
