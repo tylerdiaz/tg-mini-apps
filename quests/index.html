@@ -225,6 +225,25 @@
     .priority-badge.P0 { background: #ef4444; color: white; }
     .priority-badge.P1 { background: #f59e0b; color: white; }
     
+    /* Waiting on badges */
+    .waiting-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+    }
+    .waiting-badge.waiting-me {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+    }
+    .waiting-badge.waiting-other {
+      background: rgba(99, 102, 241, 0.15);
+      color: #6366f1;
+    }
+    
     .empty-state {
       text-align: center;
       color: var(--hint);
@@ -3951,6 +3970,32 @@
       return badge;
     }
     
+    function getWaitingBadge(quest) {
+      if (!quest.waiting_on) return '';
+      
+      const isMe = quest.waiting_on.toLowerCase() === 'me';
+      const badgeClass = isMe ? 'waiting-me' : 'waiting-other';
+      const iconName = isMe ? 'clock' : 'user';
+      
+      // Calculate wait time
+      let waitTime = '';
+      if (quest.waiting_since) {
+        const since = new Date(quest.waiting_since);
+        const now = new Date();
+        const hours = Math.floor((now - since) / (1000 * 60 * 60));
+        const days = Math.floor(hours / 24);
+        
+        if (days > 0) {
+          waitTime = ` ${days}d`;
+        } else if (hours > 0) {
+          waitTime = ` ${hours}h`;
+        }
+      }
+      
+      const label = isMe ? 'On me' : quest.waiting_on;
+      return `<span class="waiting-badge ${badgeClass}">${icon(iconName, 10)} ${label}${waitTime}</span>`;
+    }
+    
     function renderSinglePrCard(pr) {
       const cfg = prStateConfig[pr.pr_state] || prStateConfig.OPEN;
       const stateClass = pr.pr_state?.toLowerCase() || 'open';
@@ -4843,6 +4888,7 @@
         const cfg = statusConfig[q.status] || statusConfig.active;
         const topicCfg = topicConfig[q.topic] || { icon: 'folder', label: q.topic };
         const prBadge = q.pr_number ? getPrBadge(q) : '';
+        const waitingBadge = getWaitingBadge(q);
         html += `<div class="quest-card${q.isUnread ? ' unread' : ''}" onclick="openQuest('${q.id}')">
           <span class="quest-status-icon">${icon(cfg.icon, 18, cfg.color)}</span>
           <div class="quest-content">
@@ -4853,6 +4899,7 @@
             <div class="quest-meta">
               <span class="quest-topic">${icon(topicCfg.icon, 12)} ${topicCfg.label}</span>
               ${q.collaborator ? `<span>${icon('users', 12)} ${q.collaborator}</span>` : ''}
+              ${waitingBadge}
               ${prBadge}
               ${q.pingcode_ticket ? `<span class="quest-topic">${icon('ticket', 12)} ${q.pingcode_ticket}</span>` : ''}
               <span class="quest-time">${timeAgo(q.updated)}</span>
@@ -5091,6 +5138,10 @@
                 <button class="overflow-item" onclick="setStatus('ready')">${icon('circle-check', 14)} Ready</button>
                 <button class="overflow-item" onclick="setStatus('active')">${icon('play-circle', 14)} Active</button>
                 <button class="overflow-item" onclick="setStatus('blocked')">${icon('pause-circle', 14)} Blocked</button>
+                <div class="overflow-divider"></div>
+                <button class="overflow-item" onclick="setWaitingOn('me')">${icon('clock', 14)} Waiting on me</button>
+                <button class="overflow-item" onclick="promptWaitingOn()">${icon('user', 14)} Waiting on...</button>
+                <button class="overflow-item" onclick="clearWaitingOn()">${icon('x', 14)} Clear waiting</button>
                 <div class="overflow-divider"></div>
                 <button class="overflow-item" onclick="markDone()">${icon('check-circle-2', 14)} Done</button>
                 <button class="overflow-item danger" onclick="abandonQuest()">${icon('circle-x', 14)} Abandon</button>
@@ -5477,6 +5528,69 @@
       showToast(`✓ Status → ${newStatus}`);
       document.getElementById('overflow-menu').classList.remove('open');
       // Trigger will auto-log the status change
+    }
+    
+    async function setWaitingOn(who) {
+      if (!currentQuest) return;
+      
+      const { error } = await db
+        .from('quests')
+        .update({ 
+          waiting_on: who,
+          waiting_since: new Date().toISOString()
+        })
+        .eq('id', currentQuest.id);
+      
+      if (error) {
+        showToast(`❌ Failed: ${error.message}`);
+        return;
+      }
+      
+      // Log the change
+      await db.from('quest_logs').insert({
+        quest_id: currentQuest.id,
+        entry: `⏳ Waiting on: ${who}`,
+        logged_at: new Date().toISOString()
+      });
+      
+      showToast(`✓ Waiting on ${who}`);
+      document.getElementById('overflow-menu').classList.remove('open');
+      
+      // Refresh quest data
+      await loadQuests();
+      if (currentQuest) openQuest(currentQuest.id, false);
+    }
+    
+    function promptWaitingOn() {
+      const who = prompt('Waiting on who?', currentQuest?.collaborator || '');
+      if (who && who.trim()) {
+        setWaitingOn(who.trim());
+      }
+      document.getElementById('overflow-menu').classList.remove('open');
+    }
+    
+    async function clearWaitingOn() {
+      if (!currentQuest) return;
+      
+      const { error } = await db
+        .from('quests')
+        .update({ 
+          waiting_on: null,
+          waiting_since: null
+        })
+        .eq('id', currentQuest.id);
+      
+      if (error) {
+        showToast(`❌ Failed: ${error.message}`);
+        return;
+      }
+      
+      showToast(`✓ Cleared waiting status`);
+      document.getElementById('overflow-menu').classList.remove('open');
+      
+      // Refresh quest data
+      await loadQuests();
+      if (currentQuest) openQuest(currentQuest.id, false);
     }
     
     // Close overflow menu when clicking outside
