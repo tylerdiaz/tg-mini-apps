@@ -4315,8 +4315,18 @@
     
     // Parse log entry and detect activity type
     function parseActivity(entry, timestamp, prRepoMap = {}) {
+      const lowerEntry = entry.toLowerCase();
+      
+      // Strip leading emojis for cleaner display (we use icons instead)
+      let cleanEntry = entry;
+      if (lowerEntry.includes('linked obsidian') || lowerEntry.includes('linked pingcode') || 
+          lowerEntry.includes('quest created') || entry.startsWith('🔗') || 
+          entry.startsWith('📎') || entry.startsWith('🎫') || entry.startsWith('🆕')) {
+        cleanEntry = entry.replace(/^[🔗📎🎫🆕✅📝]\s*/u, '');
+      }
+      
       // Render markdown for log entries
-      const renderedEntry = renderGitHubMarkdown(entry, prRepoMap);
+      const renderedEntry = renderGitHubMarkdown(cleanEntry, prRepoMap);
       
       const result = {
         type: 'default',
@@ -4324,8 +4334,6 @@
         html: renderedEntry,
         meta: timestamp ? timeAgoFull(timestamp) : ''
       };
-      
-      const lowerEntry = entry.toLowerCase();
       
       // Detect PR comments with links
       const prCommentMatch = entry.match(/comment(?:ed)?(?:\s+on)?.*?(?:PR|pull request)?\s*#?(\d+)|review(?:ed)?.*?#?(\d+)/i);
@@ -4388,24 +4396,19 @@
         result.icon = 'paperclip';
       }
       // Detect linked notes (Obsidian, etc)
-      else if (lowerEntry.includes('linked obsidian') || lowerEntry.includes('🔗 linked')) {
+      else if (lowerEntry.includes('linked obsidian') || entry.startsWith('🔗')) {
         result.type = 'attach';
         result.icon = 'link';
-        // Remove redundant emoji from text
-        result.html = result.html.replace(/^🔗\s*/, '').replace(/^📎\s*/, '');
       }
       // Detect quest creation
-      else if (lowerEntry.includes('quest created') || lowerEntry.includes('🆕')) {
+      else if (lowerEntry.includes('quest created') || entry.startsWith('🆕')) {
         result.type = 'default';
         result.icon = 'plus-circle';
-        // Remove redundant emoji
-        result.html = result.html.replace(/^🆕\s*/, '');
       }
       // Detect ticket links
-      else if (lowerEntry.includes('linked pingcode') || lowerEntry.includes('🎫')) {
+      else if (lowerEntry.includes('linked pingcode') || entry.startsWith('🎫')) {
         result.type = 'default';
         result.icon = 'ticket';
-        result.html = result.html.replace(/^🎫\s*/, '');
       }
       
       // Link any remaining GitHub URLs that aren't already in <a> tags
