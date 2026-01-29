@@ -773,40 +773,58 @@
       margin: 12px 0;
     }
     .activity-feed {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      position: relative;
+      padding-left: 28px;
+    }
+    /* Vertical timeline line */
+    .activity-feed::before {
+      content: '';
+      position: absolute;
+      left: 13px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--secondary-bg);
     }
     .feed-item {
-      background: var(--secondary-bg);
-      border-radius: 10px;
-      padding: 12px;
+      position: relative;
+      padding: 12px 0;
       cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .feed-item:last-child {
+      border-bottom: none;
     }
     .feed-item:active { opacity: 0.8; }
-    .feed-item-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
     .feed-item-icon {
+      position: absolute;
+      left: -28px;
+      top: 12px;
       width: 28px;
       height: 28px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
+      background: var(--bg);
+      border: 2px solid var(--secondary-bg);
+      z-index: 1;
     }
-    .feed-item-icon.merge { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
-    .feed-item-icon.comment { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
-    .feed-item-icon.commit { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
-    .feed-item-icon.update { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
-    .feed-item-icon.status { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+    .feed-item-icon.merge { border-color: #8b5cf6; color: #8b5cf6; }
+    .feed-item-icon.comment { border-color: #fbbf24; color: #fbbf24; }
+    .feed-item-icon.commit { border-color: #22c55e; color: #22c55e; }
+    .feed-item-icon.update { border-color: #3b82f6; color: #3b82f6; }
+    .feed-item-icon.status { border-color: #ec4899; color: #ec4899; }
+    .feed-item-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
     .feed-item-quest {
-      font-size: 12px;
-      color: var(--hint);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -818,9 +836,9 @@
       flex-shrink: 0;
     }
     .feed-item-content {
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.4;
-      color: var(--text);
+      color: var(--hint);
     }
     .feed-item-content a {
       color: var(--link);
@@ -1614,10 +1632,10 @@
       activities.slice(0, 30).forEach(a => {
         html += `
           <div class="feed-item" onclick="openQuest('${a.quest.id}')">
+            <div class="feed-item-icon ${a.type}">
+              <i data-lucide="${a.icon}" style="width:14px;height:14px;"></i>
+            </div>
             <div class="feed-item-header">
-              <div class="feed-item-icon ${a.type}">
-                <i data-lucide="${a.icon}" style="width:14px;height:14px;"></i>
-              </div>
               <span class="feed-item-quest">${a.quest.title}</span>
               <span class="feed-item-time">${timeAgoFull(a.timestamp)}</span>
             </div>
