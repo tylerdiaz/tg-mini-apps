@@ -1965,6 +1965,57 @@
       position: relative;
     }
 
+    /* Activity Input */
+    .activity-input-container {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .activity-input {
+      flex: 1;
+      min-height: 38px;
+      max-height: 120px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.2);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      resize: none;
+      line-height: 1.4;
+    }
+    .activity-input:focus {
+      outline: none;
+      border-color: var(--btn);
+    }
+    .activity-input::placeholder {
+      color: var(--hint);
+    }
+    .activity-submit-btn {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: var(--btn);
+      color: var(--btn-text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .activity-submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .activity-submit-btn:active:not(:disabled) {
+      opacity: 0.8;
+    }
+
     /* Bottom Sheet */
     .sheet-backdrop {
       position: fixed;
@@ -4960,6 +5011,12 @@
                 <span class="section-count">${activityCount}</span>
               </div>
               <div class="collapsible-body">
+                <div class="activity-input-container">
+                  <textarea id="activity-input" class="activity-input" placeholder="Add update..." rows="1" oninput="autoGrowTextarea(this)"></textarea>
+                  <button class="activity-submit-btn" onclick="submitActivityLog()" id="activity-submit-btn">
+                    ${icon('send', 14)} Add
+                  </button>
+                </div>
                 ${logHtml}
               </div>
             </div>
@@ -5206,6 +5263,70 @@
       } else {
         showToast(`📝 Would send: add_log → ${currentQuest.id}`);
         console.log('[Browser Mode] sendData:', payload);
+      }
+    }
+    
+    // Auto-grow textarea as user types
+    function autoGrowTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+    
+    // Handle keyboard shortcuts in activity input
+    document.addEventListener('keydown', (e) => {
+      const activityInput = document.getElementById('activity-input');
+      if (e.target === activityInput && (e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        submitActivityLog();
+      }
+    });
+    
+    // Submit activity log from inline input
+    async function submitActivityLog() {
+      if (!currentQuest) return;
+      
+      const input = document.getElementById('activity-input');
+      const btn = document.getElementById('activity-submit-btn');
+      const entry = input?.value?.trim();
+      
+      if (!entry) {
+        showToast('Type something first');
+        return;
+      }
+      
+      // Disable button while submitting
+      btn.disabled = true;
+      btn.innerHTML = `${icon('loader', 14)} ...`;
+      
+      try {
+        const { error } = await db.from('quest_logs').insert({
+          quest_id: currentQuest.id,
+          entry: entry,
+          logged_at: new Date().toISOString()
+        });
+        
+        if (error) {
+          showToast(`❌ Failed: ${error.message}`);
+          return;
+        }
+        
+        // Clear input and reset height
+        input.value = '';
+        input.style.height = 'auto';
+        
+        showToast('✓ Added');
+        
+        // Reload quest to show new activity
+        await loadQuests();
+        if (currentQuest) {
+          openQuest(currentQuest.id, false);
+        }
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `${icon('send', 14)} Add`;
+        lucide.createIcons();
       }
     }
     
