@@ -310,6 +310,19 @@
     .pr-card.pr-open { border-left-color: #22c55e; }
     .pr-card.pr-merged { border-left-color: #8b5cf6; }
     .pr-card.pr-closed { border-left-color: #ef4444; }
+    .pr-card.has-conflict { border-left-color: #f59e0b; }
+    .pr-conflict-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      padding: 6px 10px;
+      margin: -12px -12px 10px -12px;
+      border-radius: 8px 8px 0 0;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
     .pr-card-header {
       display: flex;
       align-items: center;
@@ -1151,6 +1164,10 @@
       const cfg = prStateConfig[pr.pr_state] || prStateConfig.OPEN;
       const stateClass = pr.pr_state?.toLowerCase() || 'open';
       
+      // Check for merge conflicts
+      const mergeable = pr.mergeable || pr.pr_mergeable;
+      const hasConflict = mergeable === 'CONFLICTING';
+      
       // Format state label with timeline
       let stateLabel = cfg.label;
       const openedAgo = pr.pr_created_at ? timeAgoFull(pr.pr_created_at) : null;
@@ -1168,8 +1185,16 @@
       const url = pr.pr_url || `https://github.com/${pr.pr_repo}/pull/${pr.pr_number}`;
       const repoShort = pr.pr_repo?.split('/')[1] || pr.pr_repo;
       
+      // Conflict warning banner
+      const conflictBanner = hasConflict ? `
+        <div class="pr-conflict-warning">
+          ${icon('alert-triangle', 14)} Merge conflict — needs rebase
+        </div>
+      ` : '';
+      
       return `
-        <a href="${url}" target="_blank" class="pr-card pr-${stateClass}" style="text-decoration:none;color:inherit;display:block;">
+        <a href="${url}" target="_blank" class="pr-card pr-${stateClass} ${hasConflict ? 'has-conflict' : ''}" style="text-decoration:none;color:inherit;display:block;">
+          ${conflictBanner}
           <div class="pr-card-header">
             ${icon(cfg.icon, 18, cfg.color)}
             <span class="pr-card-number" style="color:${cfg.color}">#${pr.pr_number}</span>
