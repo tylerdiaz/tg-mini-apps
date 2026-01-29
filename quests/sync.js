@@ -16,32 +16,48 @@ function parseQuestMarkdown(content, questId, topic) {
     topic: topic,
     title: '',
     status: 'active',
+    priority: 'P2',
     created: '',
+    updated: '',  // Will be computed from logs
     collaborator: null,
     context: '',
     log: [],
     assets: []
   };
 
-  // Parse title
-  const titleMatch = content.match(/^# Quest: (.+)$/m);
+  // Parse title (support both formats)
+  const titleMatch = content.match(/^# (?:Quest: )?(.+)$/m);
   if (titleMatch) quest.title = titleMatch[1].trim();
 
-  // Parse frontmatter-style fields
-  const statusMatch = content.match(/\*\*Status:\*\* ([🔴🟡🟢⚪]) (\w+)/);
-  if (statusMatch) quest.status = statusMatch[2].toLowerCase();
+  // Parse frontmatter-style fields (multiple formats)
+  // Status: 🔍 investigating | 🟢 ready | 🔵 active | 🟡 blocked | ✅ done
+  const statusLine = content.match(/\*\*Status:\*\* .+$/m);
+  if (statusLine) {
+    const statusText = statusLine[0].toLowerCase();
+    if (statusText.includes('investigating')) quest.status = 'investigating';
+    else if (statusText.includes('ready')) quest.status = 'ready';
+    else if (statusText.includes('active')) quest.status = 'active';
+    else if (statusText.includes('blocked')) quest.status = 'blocked';
+    else if (statusText.includes('done')) quest.status = 'done';
+    else if (statusText.includes('paused')) quest.status = 'paused';
+  }
+
+  // Priority
+  const priorityMatch = content.match(/\*\*Priority:\*\* (P[0-3])/);
+  if (priorityMatch) quest.priority = priorityMatch[1];
 
   const createdMatch = content.match(/\*\*Created:\*\* ([\d-]+)/);
   if (createdMatch) quest.created = createdMatch[1];
 
-  const collabMatch = content.match(/\*\*Collaborator:\*\* (.+)$/m);
+  const collabMatch = content.match(/\*\*(?:Collaborator|With):\*\* (.+)$/m);
   if (collabMatch) quest.collaborator = collabMatch[1].trim();
 
   // Parse context
   const contextMatch = content.match(/## Context\n+(.+?)(?=\n##|\n\*\*|$)/s);
   if (contextMatch) quest.context = contextMatch[1].trim();
 
-  // Parse log entries
+  // Parse log entries and track last update
+  let lastLogDate = null;
   const logSection = content.match(/## Log\n([\s\S]*?)(?=\n## |$)/);
   if (logSection) {
     const logContent = logSection[1];
@@ -54,16 +70,23 @@ function parseQuestMarkdown(content, questId, topic) {
         .map(line => line.slice(2).trim());
       if (entries.length > 0) {
         quest.log.push({ date, entries });
+        // Track most recent log date
+        if (!lastLogDate || date > lastLogDate) {
+          lastLogDate = date;
+        }
       }
     }
   }
+
+  // Set updated to last log date, or created if no logs
+  quest.updated = lastLogDate || quest.created;
 
   return quest;
 }
 
 function loadQuests() {
   const quests = [];
-  const topics = ['dev', 'growth', 'ux'];
+  const topics = ['dev', 'growth', 'ux', 'ops'];
 
   for (const topic of topics) {
     const topicDir = path.join(QUESTS_DIR, topic);
@@ -122,9 +145,18 @@ function updateHtml(quests) {
 
   fs.writeFileSync(HTML_FILE, html);
   console.log(`✓ Synced ${quests.length} quests to index.html`);
+  
+  // Summary by status
+  const byStatus = {};
+  quests.forEach(q => {
+    byStatus[q.status] = (byStatus[q.status] || 0) + 1;
+  });
+  console.log('  Status:', Object.entries(byStatus).map(([k,v]) => `${k}: ${v}`).join(', '));
+  
   quests.forEach(q => {
     const assetCount = q.assets?.length || 0;
-    console.log(`  - ${q.topic}/${q.id}: ${q.log.length} log entries, ${assetCount} assets`);
+    const logCount = q.log.reduce((sum, day) => sum + day.entries.length, 0);
+    console.log(`  - ${q.topic}/${q.id}: ${q.status}, ${logCount} logs, updated ${q.updated}`);
   });
 }
 

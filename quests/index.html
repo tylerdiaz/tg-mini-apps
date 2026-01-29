@@ -23,76 +23,174 @@
       padding: 12px;
       min-height: 100vh;
     }
+
+    /* Header with search and sort */
+    .header {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
     .search {
-      width: 100%;
+      flex: 1;
       padding: 10px 12px;
       border: none;
       border-radius: 8px;
       background: var(--secondary-bg);
       color: var(--text);
       font-size: 15px;
-      margin-bottom: 12px;
     }
     .search::placeholder { color: var(--hint); }
-    .filters {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-    .filter-btn {
-      padding: 6px 12px;
+    .sort-btn {
+      padding: 10px 12px;
       border: none;
-      border-radius: 16px;
+      border-radius: 8px;
       background: var(--secondary-bg);
       color: var(--hint);
       font-size: 13px;
       cursor: pointer;
+      white-space: nowrap;
     }
-    .filter-btn.active {
+
+    /* Topic filters */
+    .topic-filters {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .topic-chip {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 14px;
+      background: var(--secondary-bg);
+      color: var(--hint);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .topic-chip.active {
       background: var(--btn);
       color: var(--btn-text);
     }
-    .topic-group { margin-bottom: 20px; }
-    .topic-header {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--hint);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+
+    /* Time filters */
+    .time-filters {
+      display: flex;
+      gap: 4px;
       margin-bottom: 8px;
-      padding-left: 4px;
     }
+    .time-chip {
+      padding: 4px 10px;
+      border: 1px solid var(--secondary-bg);
+      border-radius: 12px;
+      background: transparent;
+      color: var(--hint);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .time-chip.active {
+      border-color: var(--btn);
+      color: var(--btn);
+      background: rgba(51, 144, 236, 0.1);
+    }
+
+    /* Status tabs */
+    .status-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .status-tab {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      background: var(--secondary-bg);
+      color: var(--hint);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .status-tab.active {
+      background: var(--text);
+      color: var(--bg);
+    }
+    .status-tab .count {
+      opacity: 0.7;
+      font-size: 11px;
+    }
+
+    /* Quest cards */
+    .quests-list { }
     .quest-card {
       background: var(--secondary-bg);
-      border-radius: 12px;
+      border-radius: 10px;
       padding: 12px;
       margin-bottom: 8px;
       cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
     }
     .quest-card:active { opacity: 0.8; }
+    .quest-status-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .quest-content { flex: 1; min-width: 0; }
     .quest-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 500;
       margin-bottom: 4px;
       display: flex;
       align-items: center;
       gap: 6px;
     }
-    .quest-meta {
-      font-size: 12px;
-      color: var(--hint);
+    .quest-title-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    .status { font-size: 12px; }
-    .asset-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
+    .quest-meta {
       font-size: 11px;
       color: var(--hint);
-      margin-left: 4px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
     }
+    .quest-topic {
+      background: rgba(255,255,255,0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+    }
+    .quest-time {
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .asset-badge {
+      font-size: 10px;
+      opacity: 0.7;
+    }
+    .priority-badge {
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+    .priority-badge.P0 { background: #ef4444; color: white; }
+    .priority-badge.P1 { background: #f59e0b; color: white; }
     
+    .empty-state {
+      text-align: center;
+      color: var(--hint);
+      padding: 40px 20px;
+    }
+
     /* Detail View */
     .detail-view {
       display: none;
@@ -125,9 +223,11 @@
       font-size: 12px;
       margin-bottom: 16px;
     }
-    .detail-status.active { background: #f59e0b22; color: #f59e0b; }
+    .detail-status.investigating { background: #8b5cf622; color: #8b5cf6; }
+    .detail-status.ready { background: #22c55e22; color: #22c55e; }
+    .detail-status.active { background: #3b82f622; color: #3b82f6; }
+    .detail-status.blocked { background: #eab30822; color: #eab308; }
     .detail-status.done { background: #10b98122; color: #10b981; }
-    .detail-status.blocked { background: #ef444422; color: #ef4444; }
     .section-header {
       font-size: 12px;
       font-weight: 600;
@@ -155,11 +255,6 @@
     .log-content {
       font-size: 13px;
       line-height: 1.4;
-    }
-    .empty-state {
-      text-align: center;
-      color: var(--hint);
-      padding: 40px 20px;
     }
     
     /* Assets */
@@ -243,18 +338,82 @@
       background: var(--secondary-bg);
       color: var(--text);
     }
+
+    /* Sort menu */
+    .sort-menu {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg);
+      border-top: 1px solid var(--secondary-bg);
+      padding: 16px;
+      z-index: 150;
+      border-radius: 16px 16px 0 0;
+    }
+    .sort-menu.open { display: block; }
+    .sort-menu-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--hint);
+    }
+    .sort-option {
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sort-option:active { background: var(--secondary-bg); }
+    .sort-option.active { color: var(--btn); }
+    .sort-option .check { opacity: 0; }
+    .sort-option.active .check { opacity: 1; }
+    .sort-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 140;
+    }
+    .sort-backdrop.open { display: block; }
   </style>
 </head>
 <body>
   <div id="list-view">
-    <input type="text" class="search" id="search" placeholder="Search quests...">
-    <div class="filters">
-      <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="active">🟡 Active</button>
-      <button class="filter-btn" data-filter="done">🟢 Done</button>
-      <button class="filter-btn" data-filter="blocked">🔴 Blocked</button>
+    <div class="header">
+      <input type="text" class="search" id="search" placeholder="Search quests...">
+      <button class="sort-btn" id="sort-btn">↕️ Updated</button>
     </div>
-    <div id="quests-container"></div>
+    
+    <div class="topic-filters" id="topic-filters">
+      <button class="topic-chip active" data-topic="all">All</button>
+      <button class="topic-chip" data-topic="dev">💻 dev</button>
+      <button class="topic-chip" data-topic="growth">📈 growth</button>
+      <button class="topic-chip" data-topic="ux">🎨 ux</button>
+      <button class="topic-chip" data-topic="ops">⚙️ ops</button>
+    </div>
+    
+    <div class="time-filters" id="time-filters">
+      <button class="time-chip" data-hours="2">2h</button>
+      <button class="time-chip" data-hours="168">7d</button>
+      <button class="time-chip" data-hours="720">30d</button>
+      <button class="time-chip active" data-hours="0">All time</button>
+    </div>
+    
+    <div class="status-tabs" id="status-tabs">
+      <!-- Populated by JS -->
+    </div>
+    
+    <div class="quests-list" id="quests-container"></div>
   </div>
   
   <div class="detail-view" id="detail-view">
@@ -266,6 +425,23 @@
     <img id="lightbox-img" src="" alt="">
   </div>
 
+  <div class="sort-backdrop" id="sort-backdrop" onclick="closeSortMenu()"></div>
+  <div class="sort-menu" id="sort-menu">
+    <div class="sort-menu-title">Sort by</div>
+    <button class="sort-option active" data-sort="updated">
+      <span class="check">✓</span> Recently updated
+    </button>
+    <button class="sort-option" data-sort="created">
+      <span class="check">✓</span> Recently created
+    </button>
+    <button class="sort-option" data-sort="stale">
+      <span class="check">✓</span> Stale (oldest first)
+    </button>
+    <button class="sort-option" data-sort="priority">
+      <span class="check">✓</span> Priority
+    </button>
+  </div>
+
   <script>
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); }
@@ -273,11 +449,38 @@
     // Quest data - synced by sync.js
     const QUESTS = [
         {
+          "id": "clawdbot-distribution",
+          "topic": "dev",
+          "title": "Clawdbot Distribution",
+          "status": "blocked",
+          "priority": "P2",
+          "created": "2026-01-28",
+          "updated": "2026-01-28",
+          "collaborator": null,
+          "context": "Set up a clean way to deploy Clawdbot + workspace + skills + patches to other machines. Goal: another client can clone a template, install from fork, and get all the features we've built.",
+          "log": [
+            {
+              "date": "2026-01-28",
+              "entries": [
+                "Created quests skill package (`~/clawd/skills/spectrum-quests/SKILL.md`)",
+                "Created workspace template with all operational files (`~/clawd/clawd-workspace-template/`)",
+                "Documented patches in `~/clawd/clawdbot-patches/PATCHES.md`",
+                "Fixed clawdhub CLI (missing undici dep)",
+                "Built new quest mini-app with filters/sort",
+                "**Blocked:** Need Tyler to run `clawdhub login`, `gh repo create`, and fork clawdbot"
+              ]
+            }
+          ],
+          "assets": []
+        },
+        {
           "id": "conditional-form-fields",
           "topic": "dev",
           "title": "Conditional Form Fields on Agent1",
           "status": "active",
+          "priority": "P2",
           "created": "2026-01-28",
+          "updated": "2026-01-28",
           "collaborator": null,
           "context": "Implementation strategy for adding conditional form fields to Agent1.",
           "log": [
@@ -295,7 +498,9 @@
           "topic": "dev",
           "title": "Restricted User Design + Large Content",
           "status": "active",
+          "priority": "P1",
           "created": "2026-01-28",
+          "updated": "2026-01-28",
           "collaborator": "Ronish",
           "context": "Expanding large content handling and restricted user design work.",
           "log": [
@@ -312,8 +517,10 @@
           "id": "sage-logs-fix",
           "topic": "dev",
           "title": "Sage Logs PR Issue",
-          "status": "active",
+          "status": "investigating",
+          "priority": "P2",
           "created": "2026-01-28",
+          "updated": "2026-01-28",
           "collaborator": null,
           "context": "Investigating a PR issue related to sage logs.",
           "log": [
@@ -331,7 +538,9 @@
           "topic": "growth",
           "title": "Win-back Campaign Analysis",
           "status": "active",
+          "priority": "P1",
           "created": "2026-01-28",
+          "updated": "2026-01-28",
           "collaborator": null,
           "context": "Analyzing win-back campaign performance and scaling up data collection.",
           "log": [
@@ -347,24 +556,117 @@
         }
       ];
 
-    // Base URL for assets (adjust if hosted elsewhere)
+    // Base URL for assets
     const ASSETS_BASE = 'https://raw.githubusercontent.com/tylerdiaz/clawd-spectrum/main/quests/';
     
-    const topicEmoji = { dev: "💻", growth: "📈", ux: "🎨" };
-    const statusEmoji = { active: "🟡", done: "🟢", blocked: "🔴", paused: "⚪" };
+    const statusConfig = {
+      investigating: { emoji: '🔍', label: 'Investigating', order: 0 },
+      ready: { emoji: '🟢', label: 'Ready', order: 1 },
+      active: { emoji: '🔵', label: 'Active', order: 2 },
+      blocked: { emoji: '🟡', label: 'Blocked', order: 3 },
+      done: { emoji: '✅', label: 'Done', order: 4 },
+      paused: { emoji: '⏸️', label: 'Paused', order: 5 }
+    };
+    
+    const topicEmoji = { dev: "💻", growth: "📈", ux: "🎨", ops: "⚙️" };
     const fileIcons = { image: "🖼️", audio: "🎵", pdf: "📄", file: "📎" };
     
-    let currentFilter = "all";
+    // Filter state
+    let currentTopic = "all";
+    let currentStatus = "all";
+    let currentTimeHours = 0;  // 0 = all time
+    let currentSort = "updated";
     let searchQuery = "";
     let currentQuest = null;
+
+    function timeAgo(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr + 'T12:00:00');
+      const now = new Date();
+      const diffMs = now - date;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+      
+      if (diffHours < 1) return 'now';
+      if (diffHours < 24) return `${diffHours}h`;
+      if (diffDays < 7) return `${diffDays}d`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)}w`;
+      return `${Math.floor(diffDays / 30)}mo`;
+    }
+
+    function isWithinHours(dateStr, hours) {
+      if (!hours || hours === 0) return true;  // All time
+      if (!dateStr) return false;
+      const date = new Date(dateStr + 'T23:59:59');
+      const now = new Date();
+      const diffMs = now - date;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return diffHours <= hours;
+    }
+
+    function renderStatusTabs() {
+      const counts = { all: 0 };
+      QUESTS.forEach(q => {
+        counts.all++;
+        counts[q.status] = (counts[q.status] || 0) + 1;
+      });
+
+      const container = document.getElementById('status-tabs');
+      let html = `<button class="status-tab ${currentStatus === 'all' ? 'active' : ''}" data-status="all">
+        All <span class="count">${counts.all}</span>
+      </button>`;
+      
+      // Order: active, ready, investigating, blocked, done
+      const order = ['active', 'ready', 'investigating', 'blocked', 'done'];
+      order.forEach(status => {
+        if (counts[status]) {
+          const cfg = statusConfig[status];
+          html += `<button class="status-tab ${currentStatus === status ? 'active' : ''}" data-status="${status}">
+            ${cfg.emoji} ${cfg.label} <span class="count">${counts[status]}</span>
+          </button>`;
+        }
+      });
+      
+      container.innerHTML = html;
+      
+      // Rebind events
+      container.querySelectorAll('.status-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentStatus = btn.dataset.status;
+          container.querySelectorAll('.status-tab').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          renderQuests();
+        });
+      });
+    }
 
     function renderQuests() {
       const container = document.getElementById("quests-container");
       
+      // Filter
       let filtered = QUESTS.filter(q => {
-        if (currentFilter !== "all" && q.status !== currentFilter) return false;
+        if (currentTopic !== "all" && q.topic !== currentTopic) return false;
+        if (currentStatus !== "all" && q.status !== currentStatus) return false;
+        if (!isWithinHours(q.updated, currentTimeHours)) return false;
         if (searchQuery && !q.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
         return true;
+      });
+
+      // Sort
+      const priorityOrder = { P0: 0, P1: 1, P2: 2, P3: 3 };
+      filtered.sort((a, b) => {
+        switch (currentSort) {
+          case 'updated':
+            return (b.updated || '').localeCompare(a.updated || '');
+          case 'created':
+            return (b.created || '').localeCompare(a.created || '');
+          case 'stale':
+            return (a.updated || '').localeCompare(b.updated || '');
+          case 'priority':
+            return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+          default:
+            return 0;
+        }
       });
 
       if (filtered.length === 0) {
@@ -372,31 +674,27 @@
         return;
       }
 
-      const grouped = {};
-      filtered.forEach(q => {
-        if (!grouped[q.topic]) grouped[q.topic] = [];
-        grouped[q.topic].push(q);
-      });
-
       let html = "";
-      Object.keys(grouped).sort().forEach(topic => {
-        html += `<div class="topic-group">
-          <div class="topic-header">${topicEmoji[topic] || "📁"} ${topic.toUpperCase()}</div>`;
-        grouped[topic].forEach(q => {
-          const assetCount = q.assets?.length || 0;
-          const logCount = q.log.reduce((sum, day) => sum + day.entries.length, 0);
-          html += `<div class="quest-card" onclick="openQuest('${q.id}')">
+      filtered.forEach(q => {
+        const cfg = statusConfig[q.status] || statusConfig.active;
+        const assetCount = q.assets?.length || 0;
+        const showPriority = q.priority === 'P0' || q.priority === 'P1';
+        
+        html += `<div class="quest-card" onclick="openQuest('${q.id}')">
+          <span class="quest-status-icon">${cfg.emoji}</span>
+          <div class="quest-content">
             <div class="quest-title">
-              <span class="status">${statusEmoji[q.status] || "⚪"}</span>
-              ${q.title}
-              ${assetCount > 0 ? `<span class="asset-badge">📎${assetCount}</span>` : ''}
+              <span class="quest-title-text">${q.title}</span>
+              ${showPriority ? `<span class="priority-badge ${q.priority}">${q.priority}</span>` : ''}
             </div>
             <div class="quest-meta">
-              ${q.created}${q.collaborator ? ` · w/ ${q.collaborator}` : ""} · ${logCount} logs
+              <span class="quest-topic">${topicEmoji[q.topic] || '📁'} ${q.topic}</span>
+              ${assetCount > 0 ? `<span class="asset-badge">📎${assetCount}</span>` : ''}
+              ${q.collaborator ? `<span>w/ ${q.collaborator}</span>` : ''}
+              <span class="quest-time">${timeAgo(q.updated)}</span>
             </div>
-          </div>`;
-        });
-        html += "</div>";
+          </div>
+        </div>`;
       });
       
       container.innerHTML = html;
@@ -406,6 +704,7 @@
       const quest = QUESTS.find(q => q.id === id);
       if (!quest) return;
       currentQuest = quest;
+      const cfg = statusConfig[quest.status] || statusConfig.active;
 
       let logHtml = "";
       quest.log.forEach(day => {
@@ -437,10 +736,10 @@
 
       document.getElementById("detail-content").innerHTML = `
         <div class="detail-title">${quest.title}</div>
-        <span class="detail-status ${quest.status}">${statusEmoji[quest.status]} ${quest.status}</span>
+        <span class="detail-status ${quest.status}">${cfg.emoji} ${cfg.label}</span>
         
         <div class="section-header">Context</div>
-        <p class="context-text">${quest.context}</p>
+        <p class="context-text">${quest.context || '<em>No context provided</em>'}</p>
         
         ${quest.collaborator ? `<div class="section-header">Collaborator</div><p class="context-text">${quest.collaborator}</p>` : ""}
         
@@ -474,10 +773,19 @@
     function closeLightbox() {
       document.getElementById("lightbox").classList.remove("open");
     }
+
+    function openSortMenu() {
+      document.getElementById('sort-menu').classList.add('open');
+      document.getElementById('sort-backdrop').classList.add('open');
+    }
+
+    function closeSortMenu() {
+      document.getElementById('sort-menu').classList.remove('open');
+      document.getElementById('sort-backdrop').classList.remove('open');
+    }
     
     function addLogEntry() {
       if (!currentQuest || !tg) return;
-      // Send data back to bot
       tg.sendData(JSON.stringify({
         action: 'add_log',
         quest_id: currentQuest.id,
@@ -500,17 +808,45 @@
       renderQuests();
     });
 
-    document.querySelectorAll(".filter-btn").forEach(btn => {
+    document.getElementById("sort-btn").addEventListener("click", openSortMenu);
+
+    document.querySelectorAll(".topic-chip").forEach(btn => {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".topic-chip").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        currentFilter = btn.dataset.filter;
+        currentTopic = btn.dataset.topic;
+        renderQuests();
+      });
+    });
+
+    document.querySelectorAll(".time-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".time-chip").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentTimeHours = parseInt(btn.dataset.hours) || 0;
+        renderQuests();
+      });
+    });
+
+    document.querySelectorAll(".sort-option").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".sort-option").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentSort = btn.dataset.sort;
+        
+        // Update button label
+        const labels = { updated: 'Updated', created: 'Created', stale: 'Stale', priority: 'Priority' };
+        document.getElementById('sort-btn').textContent = '↕️ ' + labels[currentSort];
+        
+        closeSortMenu();
         renderQuests();
       });
     });
 
     if (tg) tg.BackButton.onClick(closeDetail);
 
+    // Initial render
+    renderStatusTabs();
     renderQuests();
   </script>
 </body>
