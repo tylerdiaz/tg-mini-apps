@@ -20,6 +20,9 @@ function parseQuestMarkdown(content, questId, topic) {
     created: '',
     updated: '',  // Will be computed from logs
     collaborator: null,
+    pingcode_ticket: null,
+    obsidian_note: null,
+    prs: [],
     context: '',
     log: [],
     assets: []
@@ -51,6 +54,22 @@ function parseQuestMarkdown(content, questId, topic) {
 
   const collabMatch = content.match(/\*\*(?:Collaborator|With):\*\* (.+)$/m);
   if (collabMatch) quest.collaborator = collabMatch[1].trim();
+
+  // Parse PingCode ticket
+  const pingcodeMatch = content.match(/\*\*PingCode:\*\* ([A-Z]+-\d+)/);
+  if (pingcodeMatch) quest.pingcode_ticket = pingcodeMatch[1];
+
+  // Parse Obsidian note reference
+  const obsidianMatch = content.match(/\*\*Obsidian:\*\* (.+)$/m);
+  if (obsidianMatch) quest.obsidian_note = obsidianMatch[1].trim();
+
+  // Parse linked PRs (for display)
+  const prs = [];
+  const prMatches = content.matchAll(/(?:^|\s)#(\d+)\s*[—–-]\s*(.+?)(?:\n|$)/gm);
+  for (const match of prMatches) {
+    prs.push({ number: parseInt(match[1]), title: match[2].trim() });
+  }
+  if (prs.length > 0) quest.prs = prs;
 
   // Parse context
   const contextMatch = content.match(/## Context\n+(.+?)(?=\n##|\n\*\*|$)/s);

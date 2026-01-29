@@ -1073,6 +1073,92 @@
       flex: 1;
     }
     
+    /* Next Moves - concrete action items */
+    .next-moves-section {
+      background: rgba(59, 130, 246, 0.05);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 16px;
+    }
+    .next-moves-section .sidebar-section-title {
+      color: #3b82f6;
+      margin-bottom: 10px;
+    }
+    .next-moves-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .next-move-item {
+      display: flex;
+      gap: 10px;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 10px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 6px;
+      border-left: 2px solid #3b82f6;
+    }
+    .next-move-item.urgent {
+      border-left-color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .next-move-item.pr_comment {
+      border-left-color: #8b5cf6;
+    }
+    .next-move-item.explicit {
+      border-left-color: #22c55e;
+    }
+    .next-move-number {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      background: rgba(59, 130, 246, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 11px;
+      color: #3b82f6;
+    }
+    .next-move-item.urgent .next-move-number {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+    .next-move-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .next-move-text {
+      color: var(--text);
+      word-break: break-word;
+    }
+    .next-move-source {
+      color: var(--hint);
+      font-size: 11px;
+      margin-top: 4px;
+    }
+    .next-move-details {
+      margin-top: 6px;
+      padding-left: 4px;
+      border-left: 2px solid rgba(255,255,255,0.1);
+    }
+    .next-move-detail {
+      font-size: 11px;
+      color: var(--hint);
+      margin: 3px 0;
+      padding-left: 8px;
+    }
+    .next-move-item.analyzed {
+      border-left-color: #22c55e;
+      background: rgba(34, 197, 94, 0.05);
+    }
+    .next-move-item.analyzed .next-move-number {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+    }
+    
     @media (min-width: 768px) {
       .detail-view {
         padding: 24px 32px;
@@ -4086,133 +4172,108 @@
     
     // Generate contextual suggestions for a quest
     // Assumes autonomous progress - minimize coordination overhead
-    function generateQuestSuggestions(quest) {
-      const suggestions = [];
-      const context = (quest.context || '').toLowerCase();
-      const status = quest.status;
-      const prs = quest.prs || [];
-      const prState = quest.pr_state;
+    function generateNextMoves(quest) {
+      const moves = [];
+      const context = quest.context || '';
       const prActivity = quest.pr_activity || [];
+      const questLog = quest.log || [];
+      const prNumber = quest.pr_number;
       
-      // Check for phased work
-      const phaseMatch = context.match(/phase\s*(\d+)/i);
-      const currentPhase = phaseMatch ? parseInt(phaseMatch[1]) : null;
-      
-      // Check for recent PR comments needing response
-      const recentComments = prActivity.filter(a => {
-        const age = Date.now() - new Date(a.created_at).getTime();
-        return age < 48 * 60 * 60 * 1000; // Last 48 hours
-      });
-      const hasUnaddressedComments = recentComments.some(c => 
-        c.state === 'CHANGES_REQUESTED' || 
-        (c.activity_type === 'review' && c.state !== 'APPROVED')
-      );
-      
-      // Status-based suggestions
-      if (status === 'blocked') {
-        if (context.includes('discussion') || context.includes('clarify') || context.includes('waiting')) {
-          suggestions.push({
-            icon: '⚡',
-            text: 'Can you unblock yourself? Check if there\'s a path forward without waiting.',
-            type: 'action'
-          });
-        }
-        if (context.includes('team') || context.includes('dylan') || context.includes('kai')) {
-          suggestions.push({
-            icon: '📝',
-            text: 'Document your proposed approach — async alignment beats sync meetings.',
-            type: 'action'
-          });
-        }
-      }
-      
-      // PR-based suggestions
-      if (prState === 'OPEN') {
-        if (hasUnaddressedComments) {
-          suggestions.push({
-            icon: '💬',
-            text: 'PR has review feedback — address comments to unblock merge.',
-            type: 'urgent'
-          });
-        } else if (prs.length > 0 || quest.pr_number) {
-          const prAge = quest.pr_created_at ? 
-            Math.floor((Date.now() - new Date(quest.pr_created_at).getTime()) / (1000 * 60 * 60)) : 0;
-          if (prAge > 48 && !hasUnaddressedComments) {
-            suggestions.push({
-              icon: '👀',
-              text: 'PR open >48h with no blockers — ping for review or self-merge if approved.',
-              type: 'action'
-            });
+      // 0. HIGHEST PRIORITY: Check for analyzed "🎯 Next moves" log entries
+      // These are concrete, analyzed steps — show them instead of raw PR comments
+      for (const logEntry of questLog) {
+        const entry = logEntry.entry || '';
+        if (entry.includes('🎯 Next moves')) {
+          // Parse the numbered items from the analyzed entry
+          const lines = entry.split('\n');
+          let currentItem = null;
+          
+          for (const line of lines) {
+            // Match numbered items: "1. **Title**" or "1. Title"
+            const numMatch = line.match(/^(\d+)\.\s+\*?\*?(.+?)\*?\*?\s*$/);
+            if (numMatch) {
+              if (currentItem) moves.push(currentItem);
+              currentItem = {
+                type: 'analyzed',
+                text: numMatch[2].replace(/\*\*/g, '').trim(),
+                details: [],
+                source: 'Analyzed'
+              };
+            } else if (currentItem && line.trim().startsWith('-')) {
+              // Sub-bullet details
+              currentItem.details.push(line.trim().substring(1).trim());
+            }
+          }
+          if (currentItem) moves.push(currentItem);
+          
+          // If we found analyzed moves, return them (they supersede raw comments)
+          if (moves.length > 0) {
+            return moves.slice(0, 4);
           }
         }
       }
       
-      // Phase-based suggestions
-      if (currentPhase && context.includes('✅')) {
-        const nextPhase = currentPhase + 1;
-        if (context.includes(`phase ${nextPhase}`) || context.includes(`phase${nextPhase}`)) {
-          suggestions.push({
-            icon: '🚀',
-            text: `Phase ${currentPhase} done — start Phase ${nextPhase} independently.`,
-            type: 'action'
-          });
+      // 1. Extract action requests from PR comments (FACTS, not inference)
+      prActivity.forEach(activity => {
+        if (activity.activity_type === 'comment' || activity.activity_type === 'review') {
+          const body = activity.body || '';
+          if (/can we|please|need to|should we|add |test|fix|update/i.test(body)) {
+            let actionText = body
+              .replace(/^[\s\n]+|[\s\n]+$/g, '')
+              .split('\n')[0]
+              .substring(0, 200);
+            
+            if (actionText.length > 0) {
+              moves.push({
+                type: 'pr_comment',
+                text: actionText,
+                source: `PR #${prNumber}`,
+                author: activity.author,
+                urgent: activity.state === 'CHANGES_REQUESTED'
+              });
+            }
+          }
         }
-      }
+      });
       
-      // Measurement suggestions
-      if (context.includes('measure') || context.includes('metric') || context.includes('log entries')) {
-        if (!context.includes('baseline') && !context.includes('data')) {
-          suggestions.push({
-            icon: '📊',
-            text: 'Set up measurement before shipping — harder to add later.',
-            type: 'info'
-          });
-        }
-      }
-      
-      // Experiment suggestions
-      if (context.includes('experiment') || context.includes('hypothesis')) {
-        if (context.includes('day 7') || context.includes('day 14')) {
-          suggestions.push({
-            icon: '📅',
-            text: 'Check experiment timeline — is a read or decision due?',
-            type: 'info'
-          });
-        }
-      }
-      
-      // Active quest with no recent activity
-      if (status === 'active') {
-        const lastActivity = quest.updated_at || quest.created_at;
-        const daysSinceUpdate = lastActivity ? 
-          Math.floor((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-        if (daysSinceUpdate > 3 && suggestions.length === 0) {
-          suggestions.push({
-            icon: '🎯',
-            text: 'Stale >3 days — what\'s the next concrete action?',
-            type: 'info'
-          });
-        }
-      }
-      
-      // Fallback for empty suggestions
-      if (suggestions.length === 0 && status === 'active') {
-        suggestions.push({
-          icon: '✨',
-          text: 'On track. Keep shipping.',
-          type: 'positive'
+      // 2. Check for CHANGES_REQUESTED review state
+      const changesRequested = prActivity.some(a => 
+        a.activity_type === 'review' && a.state === 'CHANGES_REQUESTED'
+      );
+      if (changesRequested && !moves.some(m => m.urgent)) {
+        moves.unshift({
+          type: 'review',
+          text: 'Address requested changes on PR',
+          source: `PR #${prNumber}`,
+          urgent: true
         });
       }
       
-      return suggestions.slice(0, 3); // Max 3 suggestions
+      // 3. Extract explicit "Next:" items from context
+      const nextMatches = context.match(/next:\s*([^\n]+)/gi) || [];
+      nextMatches.forEach(match => {
+        const nextText = match.replace(/^next:\s*/i, '').trim();
+        if (nextText && !moves.some(m => m.text.toLowerCase().includes(nextText.toLowerCase()))) {
+          moves.push({
+            type: 'explicit',
+            text: nextText,
+            source: 'Quest log'
+          });
+        }
+      });
+      
+      return moves.slice(0, 4);
     }
     
     // Parse log entry and detect activity type
     function parseActivity(entry, timestamp) {
+      // Render markdown for log entries
+      const renderedEntry = renderGitHubMarkdown(entry);
+      
       const result = {
         type: 'default',
         icon: 'message-circle',
-        html: entry,
+        html: renderedEntry,
         meta: timestamp ? timeAgoFull(timestamp) : ''
       };
       
@@ -4228,7 +4289,7 @@
         
         if (commentLinkMatch) {
           const [fullUrl, , prNum] = commentLinkMatch;
-          result.html = entry.replace(fullUrl, `<a href="${fullUrl}" target="_blank">#${prNum}</a>`);
+          result.html = result.html.replace(fullUrl, `<a href="${fullUrl}" target="_blank">#${prNum}</a>`);
         }
       }
       // Detect commits
@@ -4239,7 +4300,7 @@
         // Link commit SHAs
         const shaMatch = entry.match(/\b([a-f0-9]{7,40})\b/g);
         if (shaMatch) {
-          let html = entry;
+          let html = result.html;
           shaMatch.forEach(sha => {
             // Try to extract repo from entry or use default
             const repoMatch = entry.match(/(?:github\.com\/)?([^/\s]+\/[^/\s]+)/) || ['', '19pine/webapp'];
@@ -4259,7 +4320,7 @@
         const branchMatch = entry.match(/(?:branch|to)\s+[`"]?([a-zA-Z0-9/_-]+)[`"]?/);
         if (branchMatch) {
           const branch = branchMatch[1];
-          result.html = entry.replace(branch, `<span class="activity-branch">${icon('git-branch', 12)} ${branch}</span>`);
+          result.html = result.html.replace(branch, `<span class="activity-branch">${icon('git-branch', 12)} ${branch}</span>`);
         }
       }
       // Detect merges
@@ -4833,16 +4894,23 @@
           </div>`;
         }
         
-        // Generate contextual suggestions
-        const suggestions = generateQuestSuggestions(quest);
-        if (suggestions.length > 0) {
-          sidebarHtml += `<div class="sidebar-section suggestions-section">
-            <div class="sidebar-section-title">${icon('lightbulb', 12)} Suggestions</div>
-            <div class="suggestions-list">
-              ${suggestions.map(s => `
-                <div class="suggestion-item ${s.type || ''}">
-                  <span class="suggestion-icon">${s.icon || '→'}</span>
-                  <span class="suggestion-text">${s.text}</span>
+        // Generate concrete next moves (facts only, no inference)
+        const nextMoves = generateNextMoves(quest);
+        if (nextMoves.length > 0) {
+          sidebarHtml += `<div class="sidebar-section next-moves-section">
+            <div class="sidebar-section-title">${icon('target', 12)} Suggested Next Steps</div>
+            <div class="next-moves-list">
+              ${nextMoves.map((m, i) => `
+                <div class="next-move-item ${m.urgent ? 'urgent' : ''} ${m.type || ''}">
+                  <div class="next-move-number">${i + 1}</div>
+                  <div class="next-move-content">
+                    <div class="next-move-text">${m.text}</div>
+                    ${m.details && m.details.length > 0 ? `
+                      <div class="next-move-details">
+                        ${m.details.map(d => `<div class="next-move-detail">• ${d}</div>`).join('')}
+                      </div>
+                    ` : ''}
+                  </div>
                 </div>
               `).join('')}
             </div>
